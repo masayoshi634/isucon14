@@ -10,7 +10,7 @@ DELETE FROM vacant_chair WHERE chair_id IN (
 INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at)
   SELECT id AS chair_id,
          COALESCE(total_distance, 0) AS total_distance,
-         COALESCE(total_distance_updated_at, CURRENT_TIMESTAMP(6)) AS total_distance_updated_at
+         total_distance_updated_at AS total_distance_updated_at
   FROM chairs
          LEFT JOIN (SELECT chair_id,
                             SUM(COALESCE(distance, 0)) AS total_distance,

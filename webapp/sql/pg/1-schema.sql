@@ -156,5 +156,5 @@ create table chair_locations_summary
         constraint chair_locations_summary_pk
             primary key,
     total_distance            integer not null,
-    total_distance_updated_at timestamp not null
+    total_distance_updated_at timestamp default null
 );
