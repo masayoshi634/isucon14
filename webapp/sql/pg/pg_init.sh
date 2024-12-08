@@ -20,3 +20,4 @@ ISUCON_DB_NAME=isuride
 psql -U isucon -h 192.168.0.13 -d isuride -f /home/isucon/webapp/sql/pg/1-schema.sql
 psql -U isucon -h 192.168.0.13 -d isuride -f /home/isucon/webapp/sql/pg/2-master-data.sql
 psql -U isucon -h 192.168.0.13 -d isuride -f /home/isucon/webapp/sql/pg/3-initial-data.sql
+psql -U isucon -h 192.168.0.13 -d isuride -f /home/isucon/webapp/sql/pg/4-migrate.sql

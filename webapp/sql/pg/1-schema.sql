@@ -138,3 +138,12 @@ create index coupons_user_id_used_by_created_at_index
     on public.coupons (user_id, used_by, created_at);
 create index coupons_code_index
     on coupons (code);
+
+create table if not exists vacant_chair
+(
+    chair_id   text                    not null
+        constraint vacant_chair_pk
+            primary key,
+    distance   integer,
+    created_at timestamp default now() not null
+);
