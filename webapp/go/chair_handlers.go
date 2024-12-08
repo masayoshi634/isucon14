@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/oklog/ulid/v2"
 )
@@ -92,7 +93,9 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 	if req.IsActive {
 		isActive = 1
 	}
-	_, err := db.ExecContext(ctx, "UPDATE chairs SET is_active = ? WHERE id = ?", isActive, chair.ID)
+
+	now := time.Now()
+	_, err := db.ExecContext(ctx, "UPDATE chairs SET is_active = ?, updated_at = ? WHERE id = ?", isActive, now, chair.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
