@@ -27,6 +27,9 @@ type appPostUsersResponse struct {
 
 func appPostUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "appPostUsers")
+	defer span.End()
+
 	req := &appPostUsersRequest{}
 	if err := bindJSON(r, req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -140,6 +143,9 @@ type appPostPaymentMethodsRequest struct {
 
 func appPostPaymentMethods(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "appPostPaymentMethods")
+	defer span.End()
+
 	req := &appPostPaymentMethodsRequest{}
 	if err := bindJSON(r, req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -190,6 +196,9 @@ type getAppRidesResponseItemChair struct {
 
 func appGetRides(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "appGetRides")
+	defer span.End()
+
 	user := ctx.Value("user").(*User)
 
 	tx, err := db.Beginx()
@@ -284,6 +293,8 @@ type executableGet interface {
 }
 
 func getLatestRideStatus(ctx context.Context, tx executableGet, rideID string) (string, error) {
+	_, span := tracer.Start(ctx, "getLatestRideStatus")
+	defer span.End()
 	status := ""
 	if err := tx.GetContext(ctx, &status, `SELECT status FROM ride_statuses WHERE ride_id = ? ORDER BY created_at DESC LIMIT 1`, rideID); err != nil {
 		return "", err
@@ -293,6 +304,9 @@ func getLatestRideStatus(ctx context.Context, tx executableGet, rideID string) (
 
 func appPostRides(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "appPostRides")
+	defer span.End()
+
 	req := &appPostRidesRequest{}
 	if err := bindJSON(r, req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -450,6 +464,9 @@ type appPostRidesEstimatedFareResponse struct {
 
 func appPostRidesEstimatedFare(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "appPostRidesEstimatedFare")
+	defer span.End()
+
 	req := &appPostRidesEstimatedFareRequest{}
 	if err := bindJSON(r, req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -490,6 +507,7 @@ func appPostRidesEstimatedFare(w http.ResponseWriter, r *http.Request) {
 func calculateDistance(aLatitude, aLongitude, bLatitude, bLongitude int) int {
 	return abs(aLatitude-bLatitude) + abs(aLongitude-bLongitude)
 }
+
 func abs(a int) int {
 	if a < 0 {
 		return -a
@@ -507,6 +525,9 @@ type appPostRideEvaluationResponse struct {
 
 func appPostRideEvaluatation(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "appPostRideEvaluatation")
+	defer span.End()
+
 	rideID := r.PathValue("ride_id")
 
 	req := &appPostRideEvaluationRequest{}
@@ -660,6 +681,9 @@ type appGetNotificationResponseChairStats struct {
 
 func appGetNotification(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "appGetNotification")
+	defer span.End()
+
 	user := ctx.Value("user").(*User)
 
 	tx, err := db.Beginx()
@@ -761,6 +785,8 @@ func appGetNotification(w http.ResponseWriter, r *http.Request) {
 }
 
 func getChairStats(ctx context.Context, tx *sqlx.Tx, chairID string) (appGetNotificationResponseChairStats, error) {
+	_, span := tracer.Start(ctx, "getChairStats")
+	defer span.End()
 	stats := appGetNotificationResponseChairStats{}
 
 	rides := []Ride{}
@@ -833,6 +859,9 @@ type appGetNearbyChairsResponseChair struct {
 
 func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "appGetNearbyChairs")
+	defer span.End()
+
 	latStr := r.URL.Query().Get("latitude")
 	lonStr := r.URL.Query().Get("longitude")
 	distanceStr := r.URL.Query().Get("distance")
@@ -963,6 +992,9 @@ func calculateFare(pickupLatitude, pickupLongitude, destLatitude, destLongitude 
 }
 
 func calculateDiscountedFare(ctx context.Context, tx *sqlx.Tx, userID string, ride *Ride, pickupLatitude, pickupLongitude, destLatitude, destLongitude int) (int, error) {
+	_, span := tracer.Start(ctx, "calculateDiscountedFare")
+	defer span.End()
+
 	var coupon Coupon
 	discount := 0
 	if ride != nil {

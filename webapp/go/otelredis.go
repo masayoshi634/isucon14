@@ -13,7 +13,11 @@ import (
 var rdb = GetRedisClient(context.Background())
 
 func GetRedisClient(ctx context.Context) *redis.Client {
-	// redis.confで外部接続許可を忘れずに
+	_, span :=
+		// redis.confで外部接続許可を忘れずに
+		tracer.Start(ctx, "GetRedisClient")
+	defer span.End()
+
 	addr := fmt.Sprintf("%s:%v",
 		GetEnv("REDIS_HOSTNAME", "localhost"),
 		GetEnv("REDIS_PORT", "6379"))
@@ -35,6 +39,8 @@ func GetRedisClient(ctx context.Context) *redis.Client {
 }
 
 func WaitRedis(ctx context.Context, rdb *redis.Client) {
+	_, span := tracer.Start(ctx, "WaitRedis")
+	defer span.End()
 	for {
 		err := rdb.Ping(ctx).Err()
 		if err == nil {

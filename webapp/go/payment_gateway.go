@@ -22,13 +22,17 @@ type paymentGatewayGetPaymentsResponseOne struct {
 }
 
 func requestPaymentGatewayPostPayment(ctx context.Context, paymentGatewayURL string, token string, param *paymentGatewayPostPaymentRequest, retrieveRidesOrderByCreatedAtAsc func() ([]Ride, error)) error {
+	_, span := tracer.Start(ctx, "requestPaymentGatewayPostPayment")
+	defer span.
+
+		// 失敗したらとりあえずリトライ
+		// FIXME: 社内決済マイクロサービスのインフラに異常が発生していて、同時にたくさんリクエストすると変なことになる可能性あり
+		End()
 	b, err := json.Marshal(param)
 	if err != nil {
 		return err
 	}
 
-	// 失敗したらとりあえずリトライ
-	// FIXME: 社内決済マイクロサービスのインフラに異常が発生していて、同時にたくさんリクエストすると変なことになる可能性あり
 	retry := 0
 	for {
 		err := func() error {
