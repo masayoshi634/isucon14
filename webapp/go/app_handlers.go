@@ -809,6 +809,7 @@ var (
 )
 
 func lockRide(rideID string) func() {
+	return func() {}
 	if _, ok := rideMutex[rideID]; !ok {
 		rideMutex[rideID] = &sync.Mutex{}
 	}
