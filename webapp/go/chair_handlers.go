@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/oklog/ulid/v2"
 )
@@ -130,52 +129,12 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR SHARE", chair.ID); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-
-	/*
-		var bcl ChairLocation
-		if err := tx.GetContext(ctx, &bcl, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		distance := math.Abs(float64(req.Latitude)-float64(bcl.Latitude)) + math.Abs(float64(req.Longitude)-float64(bcl.Longitude))
-	*/
-	now := time.Now()
-	totalDistance := 0
-	if err := db.GetContext(ctx, &totalDistance, `SELECT COALESCE(SUM(total_distance), 0) AS total_distance
-FROM chairs
-       LEFT JOIN (SELECT chair_id,
-                          SUM(COALESCE(distance, 0)) AS total_distance,
-                          MAX(created_at)          AS total_distance_updated_at
-                   FROM (SELECT chair_id,
-                                created_at,
-                                ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
-                                ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-                         FROM chair_locations
-                         WHERE chair_id = ?
-                         ) tmp
-                   GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
-                         WHERE chair_id = ?`, chair.ID, chair.ID); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
 
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
 		chairLocationID, chair.ID, req.Latitude, req.Longitude,
-	); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, ?) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = ?, total_distance_updated_at = ?`,
-		chair.ID, int64(totalDistance), now, int64(totalDistance), now,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
