@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/oklog/ulid/v2"
 )
 
 const (
@@ -39,13 +37,11 @@ func ownerPostOwners(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ownerID := ulid.Make().String()
-	accessToken := secureRandomStr(32)
 	chairRegisterToken := secureRandomStr(32)
 
 	_, err := db.ExecContext(
 		ctx,
-		"INSERT INTO isu1.owners (id, name, access_token, chair_register_token) VALUES (?, ?, ?, ?)",
+		"INSERT INTO isu1.owners (id, name, access_token, chair_register_token,created_at,updated_at) VALUES (?, ?, ?, ?,now(),now())",
 		ownerID, req.Name, accessToken, chairRegisterToken,
 	)
 	if err != nil {
