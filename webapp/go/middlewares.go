@@ -59,7 +59,7 @@ func getCacheUser(ctx context.Context, accessToken string) (*User, error) {
 			if errors.Is(err, sql.ErrNoRows) {
 				return nil, errors.New("invalid access token")
 			}
-			return nil, errors.New("failed to get user")
+			return nil, err
 		}
 		userCache.Set(accessToken, user)
 	}
