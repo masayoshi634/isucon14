@@ -53,18 +53,24 @@ func getCacheUser(ctx context.Context, accessToken string) (*User, error) {
 	_, span := tracer.Start(ctx, "getCacheUser")
 	defer span.End()
 	user := &User{}
-	_, ok := userCache.Get(accessToken)
+	cacheUser, _ := userCache.Get(accessToken)
 
-	if !ok {
-		err := db.GetContext(ctx, user, "SELECT * FROM users WHERE access_token = ?", accessToken)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil, errors.New("invalid access token")
-			}
-			return nil, err
-		}
-		userCache.Set(accessToken, user)
+	if cacheUser != nil {
+		fmt.Println("cache hit %v+", cacheUser)
+		return cacheUser, nil
 	}
+
+	err := db.GetContext(ctx, user, "SELECT * FROM users WHERE access_token = ?", accessToken)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("invalid access token")
+		}
+		return nil, err
+	}
+	fmt.Println("cache nohit %v+", user)
+	userCache.Set(accessToken, user)
+
 	return user, nil
 }
 
