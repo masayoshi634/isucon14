@@ -298,7 +298,7 @@ type executableGet interface {
 func getLatestRideStatus(ctx context.Context, tx executableGet, rideID string, lock bool) (string, error) {
 	_, span := tracer.Start(ctx, "getLatestRideStatus")
 	defer span.End()
-	if !lock {
+	if lock {
 		c := lockRide(rideID)
 		defer c()
 	}
