@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/oklog/ulid/v2"
@@ -318,6 +319,7 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ride.ChairID.String != chair.ID {
+		slog.ErrorContext(ctx, "chairPostRideStatus: not assigned to this ride", slog.String("ride_id", rideID), slog.String("chair_id", chair.ID))
 		writeError(w, http.StatusBadRequest, errors.New("not assigned to this ride"))
 		return
 	}
