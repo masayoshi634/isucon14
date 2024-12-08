@@ -173,13 +173,13 @@ create index ride_statuses_ride_id_created_at_index
     on ride_statuses (ride_id,  created_at);
 
 create index coupons_used_by_index
-    on public.coupons (used_by);
+    on coupons (used_by);
 
 create index coupons_user_id_code_used_by_index
     on coupons (user_id, code, used_by);
 -- いらんかも
 create index coupons_user_id_used_by_created_at_index
-    on public.coupons (user_id, used_by, created_at);
+    on coupons (user_id, used_by, created_at);
 
 create index coupons_code_index
     on coupons (code);
