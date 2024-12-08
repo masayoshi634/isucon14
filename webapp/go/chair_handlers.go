@@ -148,7 +148,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, CURRENT_TIMESTAMP(6)) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = total_distance + ?, total_distance_updated_at = CURRENT_TIMESTAMP(6)`,
+		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, CURRENT_TIMESTAMP(6)) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = EXCLUDED.total_distance + ?, total_distance_updated_at = CURRENT_TIMESTAMP(6)`,
 		chair.ID, int64(distance), int64(distance),
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
