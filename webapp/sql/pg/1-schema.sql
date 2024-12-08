@@ -103,3 +103,48 @@ CREATE TABLE coupons (
     used_by TEXT,                       -- クーポンが適用されたライドのID
     PRIMARY KEY (user_id, code)
 );
+
+-- add index
+create index rides_chair_id_created_at_index
+    on rides (chair_id, created_at);
+create index chairs_is_active_index
+    on chairs (is_active);
+create index rides_chair_id_index
+    on rides (chair_id);
+create index rides_user_id_created_at_index
+    on rides (user_id asc, created_at desc);
+create index ride_statuses_ride_id_app_sent_at_created_at_index
+    on ride_statuses (ride_id, app_sent_at, created_at);
+create index rides_chair_id_created_at_desc_index
+    on rides (chair_id asc, created_at desc);
+create index chair_locations_chair_id_created_at_index
+    on chair_locations (chair_id asc, created_at desc);
+create index chairs_owner_id_index
+    on chairs (owner_id);
+create index ride_statuses_status_ride_id_index
+    on ride_statuses (status, ride_id);
+create index rides_id_chair_id_updated_at_index
+    on rides (chair_id, updated_at,id);
+create index ride_statuses_ride_id_chair_sent_at_created_at_index
+    on ride_statuses (ride_id, chair_sent_at, created_at);
+create index ride_statuses_ride_id_created_at_index
+    on ride_statuses (ride_id,  created_at);
+create index coupons_used_by_index
+    on public.coupons (used_by);
+create index coupons_user_id_code_used_by_index
+    on coupons (user_id, code, used_by);
+-- いらんかも
+create index coupons_user_id_used_by_created_at_index
+    on public.coupons (user_id, used_by, created_at);
+create index coupons_code_index
+    on coupons (code);
+
+DROP TABLE IF EXISTS vacant_chair;
+create table if not exists vacant_chair
+(
+    chair_id   text                    not null
+        constraint vacant_chair_pk
+            primary key,
+    distance   integer,
+    created_at timestamp default now() not null
+);

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/oklog/ulid/v2"
@@ -91,8 +92,13 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 	if req.IsActive {
 		isActive = 1
 	}
-	_, err := db.ExecContext(ctx, "UPDATE chairs SET is_active = ? WHERE id = ?", isActive, chair.ID)
+
+	_, err := db.ExecContext(ctx, "UPDATE chairs SET is_active = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?", isActive, chair.ID)
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id) VALUES (?) ON CONFLICT DO NOTHING", chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -254,6 +260,12 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if yetSentRideStatus.Status == "COMPLETED" {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id) VALUES (?) ON CONFLICT DO NOTHING", chair.ID); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -318,6 +330,7 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ride.ChairID.String != chair.ID {
+		slog.ErrorContext(ctx, "chairPostRideStatus: not assigned to this ride", slog.String("ride_id", rideID), slog.String("chair_id", chair.ID))
 		writeError(w, http.StatusBadRequest, errors.New("not assigned to this ride"))
 		return
 	}

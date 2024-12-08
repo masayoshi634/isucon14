@@ -111,7 +111,7 @@ func appPostUsers(w http.ResponseWriter, r *http.Request) {
 		// 招待した人にもRewardを付与
 		_, err = tx.ExecContext(
 			ctx,
-			"INSERT INTO coupons (user_id, code, discount) VALUES (?, CONCAT(?, '_', FLOOR(UNIX_TIMESTAMP(NOW(3))*1000)), ?)",
+			"INSERT INTO coupons (user_id, code, discount) VALUES (?, CONCAT(?, '_', FLOOR(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(3))*1000)), ?)",
 			inviter.ID, "RWD_"+*req.InvitationCode, 1000,
 		)
 		if err != nil {
@@ -569,7 +569,7 @@ func appPostRideEvaluatation(w http.ResponseWriter, r *http.Request) {
 
 	result, err := tx.ExecContext(
 		ctx,
-		`UPDATE rides SET evaluation = ? WHERE id = ?`,
+		`UPDATE rides SET evaluation = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?`,
 		req.Evaluation, rideID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -747,7 +747,9 @@ func appGetNotification(w http.ResponseWriter, r *http.Request) {
 		RetryAfterMs: 30,
 	}
 
-	if ride.ChairID.Valid {
+	// NOTE: コメントアウトのやつにするとスコアが低くなる
+	// if ride.ChairID.Valid && ride.ChairID.String != "" {
+	if ride.ChairID.Valid || ride.ChairID.String != "" {
 		chair := &Chair{}
 		if err := tx.GetContext(ctx, chair, `SELECT * FROM chairs WHERE id = ?`, ride.ChairID); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
