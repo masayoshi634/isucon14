@@ -59,11 +59,15 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		}
 	*/
 
-	if _, err := db.ExecContext(ctx, "UPDATE rides SET chair_id = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?", matchedChairID, ride.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, "UPDATE rides SET chair_id = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?", matchedChairID, ride.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if _, err := db.ExecContext(ctx, "DELETE FROM vacant_chair WHERE chair_id = ?", matchedChairID); err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM vacant_chair WHERE chair_id = ?", matchedChairID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
