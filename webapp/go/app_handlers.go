@@ -567,11 +567,10 @@ func appPostRideEvaluatation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
 	result, err := tx.ExecContext(
 		ctx,
-		`UPDATE rides SET evaluation = ?, updated_at = ? WHERE id = ?`,
-		req.Evaluation, now, rideID)
+		`UPDATE rides SET evaluation = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?`,
+		req.Evaluation, rideID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -770,8 +769,7 @@ func appGetNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if yetSentRideStatus.ID != "" {
-		now := time.Now()
-		_, err := tx.ExecContext(ctx, `UPDATE ride_statuses SET app_sent_at = CURRENT_TIMESTAMP(6), updated_at = ? WHERE id = ?`, now, yetSentRideStatus.ID)
+		_, err := tx.ExecContext(ctx, `UPDATE ride_statuses SET app_sent_at = CURRENT_TIMESTAMP(6) WHERE id = ?`, yetSentRideStatus.ID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
