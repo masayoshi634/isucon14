@@ -19,8 +19,18 @@ func appAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		accessToken := c.Value
-		user := &User{}
-		err = db.GetContext(ctx, user, "SELECT * FROM users WHERE access_token = ?", accessToken)
+		// user := &User{}
+		// err = db.GetContext(ctx, user, "SELECT * FROM users WHERE access_token = ?", accessToken)
+		// if err != nil {
+		// 	if errors.Is(err, sql.ErrNoRows) {
+		// 		writeError(w, http.StatusUnauthorized, errors.New("invalid access token"))
+		// 		return
+		// 	}
+		// 	writeError(w, http.StatusInternalServerError, err)
+		// 	return
+		// }
+		user, err := getCacheUser(ctx, accessToken)
+
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				writeError(w, http.StatusUnauthorized, errors.New("invalid access token"))
@@ -29,10 +39,31 @@ func appAuthMiddleware(next http.Handler) http.Handler {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-
 		ctx = context.WithValue(ctx, "user", user)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+var userCache = NewCache[string, *User]()
+
+// userをシングルフライトでキャッシュする
+func getCacheUser(ctx context.Context, accessToken string) (*User, error) {
+	_, span := tracer.Start(ctx, "getCacheUser")
+	defer span.End()
+
+	user, ok := userCache.Get(accessToken)
+
+	if !ok {
+		err := db.GetContext(ctx, user, "SELECT * FROM users WHERE access_token = ?", accessToken)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, errors.New("invalid access token")
+			}
+			return nil, errors.New("failed to get user")
+		}
+		userCache.Set(accessToken, user)
+	}
+	return user, nil
 }
 
 func ownerAuthMiddleware(next http.Handler) http.Handler {
