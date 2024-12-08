@@ -298,13 +298,13 @@ type executableGet interface {
 func getLatestRideStatus(ctx context.Context, tx executableGet, rideID string, lock bool) (string, error) {
 	_, span := tracer.Start(ctx, "getLatestRideStatus")
 	defer span.End()
-	if lock {
-		c := lockRide(rideID)
-		defer c()
-	}
-	if s, ok := getRideStatus(rideID); ok {
-		return s, nil
-	}
+	//if lock {
+	//	c := lockRide(rideID)
+	//	defer c()
+	//}
+	//if s, ok := getRideStatus(rideID); ok {
+	//	return s, nil
+	//}
 	status := ""
 	if err := tx.GetContext(ctx, &status, `SELECT status FROM ride_statuses WHERE ride_id = ? ORDER BY created_at DESC LIMIT 1`, rideID); err != nil {
 		return "", err
