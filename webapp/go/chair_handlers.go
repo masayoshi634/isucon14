@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"net/http"
 
 	"github.com/oklog/ulid/v2"
@@ -135,12 +134,23 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var bcl ChairLocation
-	if err := tx.GetContext(ctx, &bcl, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	/*
+		var bcl ChairLocation
+		if err := tx.GetContext(ctx, &bcl, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		distance := math.Abs(float64(req.Latitude)-float64(bcl.Latitude)) + math.Abs(float64(req.Longitude)-float64(bcl.Longitude))
+	*/
+	totalDistance := 0
+	if err := db.SelectContext(ctx, &totalDistance, `SELECT SUM(COALESCE(distance, 0)) AS total_distance,
+		                   FROM (SELECT ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+		                                ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+		                         FROM chair_locations WHERE chair_id = ?) tmp`, chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	distance := math.Abs(float64(req.Latitude)-float64(bcl.Latitude)) + math.Abs(float64(req.Longitude)-float64(bcl.Longitude))
+
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
@@ -153,7 +163,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, CURRENT_TIMESTAMP(6)) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = chair_locations_summary.total_distance + ?, total_distance_updated_at = CURRENT_TIMESTAMP(6)`,
-		chair.ID, int64(distance), int64(distance),
+		chair.ID, int64(totalDistance), int64(totalDistance),
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
