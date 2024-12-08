@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
-	"github.com/riandyrn/otelchi"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var db *sqlx.DB
@@ -79,9 +79,8 @@ func setup() http.Handler {
 
 	// define router
 	r := chi.NewRouter()
-	r.Use(
-		otelchi.Middleware(serverName, otelchi.WithChiRoutes(r)),
-	)
+	mi := otelhttp.NewMiddleware(serverName)
+	r.Use(mi)
 	mux.HandleFunc("POST /api/initialize", postInitialize)
 
 	// app handlers
