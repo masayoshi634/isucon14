@@ -203,11 +203,11 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
        is_active,
        created_at,
        updated_at,
-       IFNULL(total_distance, 0) AS total_distance,
+       COALESCE(total_distance, 0) AS total_distance,
        total_distance_updated_at
 FROM chairs
        LEFT JOIN (SELECT chair_id,
-                          SUM(IFNULL(distance, 0)) AS total_distance,
+                          SUM(COALESCE(distance, 0)) AS total_distance,
                           MAX(created_at)          AS total_distance_updated_at
                    FROM (SELECT chair_id,
                                 created_at,
