@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 
-	_ "github.com/mackee/pgx-replaced"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func GetDBNoOtel() (*sqlx.DB, error) {
