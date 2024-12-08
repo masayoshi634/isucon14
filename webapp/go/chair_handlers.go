@@ -156,7 +156,7 @@ FROM chairs
                          WHERE chair_id = '01JDJ3EZVRW3AFFDVQSS7AE7QE'
                          ) tmp
                    GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
-                         WHERE chair_id = '01JDJ3EZVRW3AFFDVQSS7AE7QE'`, chair.ID); err != nil {
+                         WHERE chair_id = ?`, chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
