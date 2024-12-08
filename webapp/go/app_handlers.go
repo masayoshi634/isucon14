@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -479,7 +478,6 @@ func appPostRidesEstimatedFare(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := ctx.Value("user").(*User)
-	fmt.Printf("user: %v\n", user)
 
 	tx, err := db.Beginx()
 	if err != nil {
