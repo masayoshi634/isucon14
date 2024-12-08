@@ -52,7 +52,7 @@ func chairPostChairs(w http.ResponseWriter, r *http.Request) {
 
 	_, err := db.ExecContext(
 		ctx,
-		"INSERT INTO chairs (id, owner_id, name, model, is_active, access_token) VALUES (?, ?, ?, ?, ?, ?)",
+		"INSERT INTO isu1.chairs (id, owner_id, name, model, is_active, access_token) VALUES (?, ?, ?, ?, ?, ?)",
 		chairID, owner.ID, req.Name, req.Model, 0, accessToken,
 	)
 	if err != nil {
@@ -130,7 +130,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR SHARE", chair.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, "SELECT id FROM isu1.chairs WHERE id = ? FOR SHARE", chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -154,7 +154,7 @@ FROM chairs
                                 created_at,
                                 ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
                                 ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-                         FROM chair_locations
+                         FROM isu1.chair_locations
                          WHERE chair_id = ?
                          ) tmp
                    GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
@@ -166,7 +166,7 @@ FROM chairs
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO isu1.chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
 		chairLocationID, chair.ID, req.Latitude, req.Longitude,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -174,7 +174,7 @@ FROM chairs
 	}
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, ?) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = ?, total_distance_updated_at = ?`,
+		`INSERT INTO isu1.chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, ?) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = ?, total_distance_updated_at = ?`,
 		chair.ID, int64(totalDistance), now, int64(totalDistance), now,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -182,7 +182,7 @@ FROM chairs
 	}
 
 	location := &ChairLocation{}
-	if err := tx.GetContext(ctx, location, `SELECT * FROM chair_locations WHERE id = ?`, chairLocationID); err != nil {
+	if err := tx.GetContext(ctx, location, `SELECT * FROM isu1.chair_locations WHERE id = ?`, chairLocationID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}

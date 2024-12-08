@@ -116,7 +116,7 @@ func ownerGetSales(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	chairs := []Chair{}
-	if err := tx.SelectContext(ctx, &chairs, "SELECT * FROM chairs WHERE owner_id = ?", owner.ID); err != nil {
+	if err := tx.SelectContext(ctx, &chairs, "SELECT * FROM isu1.chairs WHERE owner_id = ?", owner.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -242,8 +242,8 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
        updated_at,
        COALESCE(total_distance, 0) AS total_distance,
        total_distance_updated_at
-FROM chairs
-LEFT JOIN chair_locations_summary
+FROM isu1.chairs
+LEFT JOIN isu1.chair_locations_summary
 ON chairs.id = chair_locations_summary.chair_id
 WHERE owner_id = ?`, owner.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
