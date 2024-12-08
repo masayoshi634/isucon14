@@ -143,7 +143,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		distance := math.Abs(float64(req.Latitude)-float64(bcl.Latitude)) + math.Abs(float64(req.Longitude)-float64(bcl.Longitude))
 	*/
 	totalDistance := 0
-	if err := db.GetContext(ctx, &totalDistance, `SELECT SUM(COALESCE(total_distance, 0)) AS total_distance
+	if err := db.GetContext(ctx, &totalDistance, `SELECT COALESCE(SUM(total_distance), 0) AS total_distance
 FROM chairs
        LEFT JOIN (SELECT chair_id,
                           SUM(COALESCE(distance, 0)) AS total_distance,
