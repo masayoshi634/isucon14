@@ -18,7 +18,7 @@ CREATE TABLE chairs (
     owner_id TEXT NOT NULL,             -- オーナーID
     name VARCHAR(30) NOT NULL,          -- 椅子の名前
     model TEXT NOT NULL,                -- 椅子のモデル
-    is_active BOOLEAN NOT NULL,         -- 配椅子受付中かどうか
+    is_active INT NOT NULL,         -- 配椅子受付中かどうか
     access_token VARCHAR(255) NOT NULL, -- アクセストークン
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, -- 登録日時
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
