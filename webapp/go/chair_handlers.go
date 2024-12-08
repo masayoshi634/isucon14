@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 
 	"github.com/oklog/ulid/v2"
@@ -130,11 +131,25 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	var bcl ChairLocation
+	if err := tx.GetContext(ctx, &bcl, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	distance := math.Abs(float64(req.Latitude)-float64(bcl.Latitude)) + math.Abs(float64(req.Longitude)-float64(bcl.Longitude))
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
 		chairLocationID, chair.ID, req.Latitude, req.Longitude,
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if _, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, CURRENT_TIMESTAMP(6)) ON CONFLICT DO UPDATE SET total_distance = total_distance + ?, total_distance_updated_at = CURRENT_TIMESTAMP(6)`,
+		chair.ID, int64(distance), int64(distance),
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
