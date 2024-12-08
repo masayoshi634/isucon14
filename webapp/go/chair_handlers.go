@@ -143,10 +143,20 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		distance := math.Abs(float64(req.Latitude)-float64(bcl.Latitude)) + math.Abs(float64(req.Longitude)-float64(bcl.Longitude))
 	*/
 	totalDistance := 0
-	if err := db.SelectContext(ctx, &totalDistance, `SELECT SUM(COALESCE(distance, 0)) AS total_distance,
-		                   FROM (SELECT ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
-		                                ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-		                         FROM chair_locations WHERE chair_id = ?) tmp`, chair.ID); err != nil {
+	if err := db.SelectContext(ctx, &totalDistance, `SELECT COALESCE(total_distance, 0) AS total_distance,
+FROM chairs
+       LEFT JOIN (SELECT chair_id,
+                          SUM(COALESCE(distance, 0)) AS total_distance,
+                          MAX(created_at)          AS total_distance_updated_at
+                   FROM (SELECT chair_id,
+                                created_at,
+                                ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+                                ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+                         FROM chair_locations
+                         WHERE chair_id = '01JDJ3EZVRW3AFFDVQSS7AE7QE'
+                         ) tmp
+                   GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
+                         WHERE chair_id = '01JDJ3EZVRW3AFFDVQSS7AE7QE'`, chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
