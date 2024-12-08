@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -786,16 +787,42 @@ func appGetNotification(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, response)
 }
 
+var (
+	rideMutex     = map[string]*sync.Mutex{}
+	rideStatusMap = map[string]string{}
+)
+
+func lockRide(rideID string) func() {
+	if _, ok := rideMutex[rideID]; !ok {
+		rideMutex[rideID] = &sync.Mutex{}
+	}
+	rideMutex[rideID].Lock()
+	return func() {
+		rideMutex[rideID].Unlock()
+	}
+}
+
+func getRideStatus(rideID string) string {
+	return rideStatusMap[rideID]
+}
+
+func setRideStatus(rideID, status string) {
+	rideStatusMap[rideID] = status
+}
+
 func getChairStats(ctx context.Context, tx *sqlx.Tx, chairID string) (appGetNotificationResponseChairStats, error) {
 	_, span := tracer.Start(ctx, "getChairStats")
 	defer span.End()
 	stats := appGetNotificationResponseChairStats{}
 
-	rides := []Ride{}
+	type RideStatus struct {
+		Evaluation *int `db:"evaluation"`
+	}
+	rides := []RideStatus{}
 	err := tx.SelectContext(
 		ctx,
 		&rides,
-		`SELECT * FROM rides WHERE chair_id = ? ORDER BY updated_at DESC`,
+		`SELECT rides.evaluation FROM rides WHERE chair_id = ? INNER OUTER JOIN ride_statuses ON ride_statues.rides_id = rides.id`,
 		chairID,
 	)
 	if err != nil {
@@ -805,38 +832,8 @@ func getChairStats(ctx context.Context, tx *sqlx.Tx, chairID string) (appGetNoti
 	totalRideCount := 0
 	totalEvaluation := 0.0
 	for _, ride := range rides {
-		rideStatuses := []RideStatus{}
-		err = tx.SelectContext(
-			ctx,
-			&rideStatuses,
-			`SELECT * FROM ride_statuses WHERE ride_id = ? ORDER BY created_at`,
-			ride.ID,
-		)
-		if err != nil {
-			return stats, err
-		}
-
-		var arrivedAt, pickupedAt *time.Time
-		var isCompleted bool
-		for _, status := range rideStatuses {
-			if status.Status == "ARRIVED" {
-				arrivedAt = &status.CreatedAt
-			} else if status.Status == "CARRYING" {
-				pickupedAt = &status.CreatedAt
-			}
-			if status.Status == "COMPLETED" {
-				isCompleted = true
-			}
-		}
-		if arrivedAt == nil || pickupedAt == nil {
-			continue
-		}
-		if !isCompleted {
-			continue
-		}
-
-		totalRideCount++
 		totalEvaluation += float64(*ride.Evaluation)
+		totalRideCount++
 	}
 
 	stats.TotalRidesCount = totalRideCount
