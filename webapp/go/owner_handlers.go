@@ -128,8 +128,7 @@ func ownerGetSales(w http.ResponseWriter, r *http.Request) {
 	modelSalesByModel := map[string]int{}
 	for _, chair := range chairs {
 		rides := []Ride{}
-
-		if err := tx.SelectContext(ctx, &rides, "SELECT rides.* FROM rides JOIN ride_statuses ON rides.id = ride_statuses.ride_id WHERE chair_id = ? AND status = 'COMPLETED' AND updated_at BETWEEN ? AND ?", chair.ID, since, until.Add(999*time.Microsecond)); err != nil {
+		if err := tx.SelectContext(ctx, &rides, "SELECT rides.* FROM rides JOIN ride_statuses ON rides.id = ride_statuses.ride_id WHERE chair_id = ? AND status = 'COMPLETED' AND updated_at BETWEEN ? AND ? + INTERVAL 999 MICROSECOND", chair.ID, since, until); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
@@ -176,7 +175,7 @@ type chairWithDetail struct {
 	Name                   string       `db:"name"`
 	AccessToken            string       `db:"access_token"`
 	Model                  string       `db:"model"`
-	IsActive               int          `db:"is_active"`
+	IsActive               bool         `db:"is_active"`
 	CreatedAt              time.Time    `db:"created_at"`
 	UpdatedAt              time.Time    `db:"updated_at"`
 	TotalDistance          int          `db:"total_distance"`
@@ -213,11 +212,11 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
        is_active,
        created_at,
        updated_at,
-       COALESCE(total_distance, 0) AS total_distance,
+       IFNULL(total_distance, 0) AS total_distance,
        total_distance_updated_at
 FROM chairs
        LEFT JOIN (SELECT chair_id,
-                          SUM(COALESCE(distance, 0)) AS total_distance,
+                          SUM(IFNULL(distance, 0)) AS total_distance,
                           MAX(created_at)          AS total_distance_updated_at
                    FROM (SELECT chair_id,
                                 created_at,
@@ -233,15 +232,11 @@ WHERE owner_id = ?
 
 	res := ownerGetChairResponse{}
 	for _, chair := range chairs {
-		isActive := false
-		if chair.IsActive != 0 {
-			isActive = true
-		}
 		c := ownerGetChairResponseChair{
 			ID:            chair.ID,
 			Name:          chair.Name,
 			Model:         chair.Model,
-			Active:        isActive,
+			Active:        chair.IsActive,
 			RegisteredAt:  chair.CreatedAt.UnixMilli(),
 			TotalDistance: chair.TotalDistance,
 		}
