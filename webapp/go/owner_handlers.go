@@ -26,6 +26,9 @@ type ownerPostOwnersResponse struct {
 
 func ownerPostOwners(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "ownerPostOwners")
+	defer span.End()
+
 	req := &ownerPostOwnersRequest{}
 	if err := bindJSON(r, req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -81,6 +84,9 @@ type ownerGetSalesResponse struct {
 
 func ownerGetSales(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "ownerGetSales")
+	defer span.End()
+
 	since := time.Unix(0, 0)
 	until := time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
 	if r.URL.Query().Get("since") != "" {
@@ -192,6 +198,9 @@ type ownerGetChairResponseChair struct {
 
 func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "ownerGetChairs")
+	defer span.End()
+
 	owner := ctx.Value("owner").(*Owner)
 
 	chairs := []chairWithDetail{}
