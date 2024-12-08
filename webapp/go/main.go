@@ -76,11 +76,9 @@ func setup() http.Handler {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
 	serverName := "isuride"
-
-	// define router
-	r := chi.NewRouter()
 	mi := otelhttp.NewMiddleware(serverName)
-	r.Use(mi)
+	mux.Use(mi)
+
 	mux.HandleFunc("POST /api/initialize", postInitialize)
 
 	// app handlers
