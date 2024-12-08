@@ -51,7 +51,7 @@ func getCacheUser(ctx context.Context, accessToken string) (*User, error) {
 	_, span := tracer.Start(ctx, "getCacheUser")
 	defer span.End()
 	user := &User{}
-	user, ok := userCache.Get(accessToken)
+	_, ok := userCache.Get(accessToken)
 
 	if !ok {
 		err := db.GetContext(ctx, user, "SELECT * FROM users WHERE access_token = ?", accessToken)
