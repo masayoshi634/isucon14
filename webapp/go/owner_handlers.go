@@ -41,7 +41,7 @@ func ownerPostOwners(w http.ResponseWriter, r *http.Request) {
 
 	_, err := db.ExecContext(
 		ctx,
-		"INSERT INTO isu1.owners (id, name, access_token, chair_register_token,created_at,updated_at) VALUES (?, ?, ?, ?,now(),now())",
+		"INSERT INTO owners (id, name, access_token, chair_register_token) VALUES (?, ?, ?, ?)",
 		ownerID, req.Name, accessToken, chairRegisterToken,
 	)
 	if err != nil {

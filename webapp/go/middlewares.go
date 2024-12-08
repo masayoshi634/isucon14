@@ -124,7 +124,7 @@ func getCacheOwner(ctx context.Context, accessToken string) (*Owner, error) {
 	}
 
 	owner := &Owner{}
-	err := db.GetContext(ctx, owner, "SELECT * FROM isu1.owners WHERE access_token = ?", accessToken)
+	err := db.GetContext(ctx, owner, "SELECT * FROM owners WHERE access_token = ?", accessToken)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("invalid access token")
