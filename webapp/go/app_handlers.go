@@ -747,7 +747,7 @@ func appGetNotification(w http.ResponseWriter, r *http.Request) {
 		RetryAfterMs: 30,
 	}
 
-	if ride.ChairID.Valid || ride.ChairID.String != "" {
+	if ride.ChairID.Valid && ride.ChairID.String != "" {
 		chair := &Chair{}
 		if err := tx.GetContext(ctx, chair, `SELECT * FROM chairs WHERE id = ?`, ride.ChairID); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
