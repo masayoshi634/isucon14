@@ -27,7 +27,7 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 	}
 	var matchedChairID string
-	if err := tx.GetContext(ctx, matchedChairID, "SELECT chair_id FROM vacant_chair FOR UPDATE SKIP LOCKED LIMIT 1"); err != nil {
+	if err := tx.GetContext(ctx, &matchedChairID, "SELECT chair_id FROM vacant_chair FOR UPDATE SKIP LOCKED LIMIT 1"); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
