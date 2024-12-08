@@ -51,10 +51,15 @@ sudo systemctl daemon-reload
 
 # ====== go ======
 (
-  cd /home/isucon/webapp/golang
+  cd /home/isucon/webapp/go
   go build -o isuride
   # make all
 )
+
+mkdir -p /home/isucon/log/app
+#sudo logrotate -f /home/isucon/etc/logrotate.d/app
+sudo systemctl restart isuride-go.service
+sleep 0.5 && sudo systemctl is-active isuride-go.service
 
 mkdir -p /home/isucon/log/app
 #sudo logrotate -f /home/isucon/etc/logrotate.d/app
