@@ -194,7 +194,9 @@ FROM chairs
 			return
 		}
 	} else {
-		status, err := getLatestRideStatus(ctx, tx, ride.ID)
+		c := lockRide(ride.ID)
+		defer c()
+		status, err := getLatestRideStatus(ctx, tx, ride.ID, false)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
@@ -205,6 +207,7 @@ FROM chairs
 					writeError(w, http.StatusInternalServerError, err)
 					return
 				}
+				setRideStatus(ride.ID, "PICKUP")
 			}
 
 			if req.Latitude == ride.DestinationLatitude && req.Longitude == ride.DestinationLongitude && status == "CARRYING" {
@@ -212,6 +215,7 @@ FROM chairs
 					writeError(w, http.StatusInternalServerError, err)
 					return
 				}
+				setRideStatus(ride.ID, "ARRIVED")
 			}
 		}
 	}
@@ -274,7 +278,7 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 
 	if err := tx.GetContext(ctx, &yetSentRideStatus, `SELECT * FROM ride_statuses WHERE ride_id = ? AND chair_sent_at IS NULL ORDER BY created_at ASC LIMIT 1`, ride.ID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			status, err = getLatestRideStatus(ctx, tx, ride.ID)
+			status, err = getLatestRideStatus(ctx, tx, ride.ID, true)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, err)
 				return
@@ -353,6 +357,9 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	c := lockRide(rideID)
+	defer c()
+
 	tx, err := db.Beginx()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -383,9 +390,10 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
+		setRideStatus(ride.ID, "ENROUTE")
 	// After Picking up user
 	case "CARRYING":
-		status, err := getLatestRideStatus(ctx, tx, ride.ID)
+		status, err := getLatestRideStatus(ctx, tx, ride.ID, false)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
@@ -398,6 +406,7 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
+		setRideStatus(ride.ID, "CARRYING")
 	default:
 		writeError(w, http.StatusBadRequest, errors.New("invalid status"))
 	}

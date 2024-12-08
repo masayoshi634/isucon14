@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os/exec"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -148,6 +149,8 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	rideMutex = make(map[string]*sync.Mutex)
+	rideStatusMap = make(map[string]string)
 
 	writeJSON(w, http.StatusOK, postInitializeResponse{Language: "go"})
 }

@@ -222,50 +222,52 @@ func appGetRides(w http.ResponseWriter, r *http.Request) {
 
 	items := []getAppRidesResponseItem{}
 	for _, ride := range rides {
-		status, err := getLatestRideStatus(ctx, tx, ride.ID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		if status != "COMPLETED" {
-			continue
-		}
+		func() {
+			status, err := getLatestRideStatus(ctx, tx, ride.ID, true)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			if status != "COMPLETED" {
+				return
+			}
 
-		fare, err := calculateDiscountedFare(ctx, tx, user.ID, &ride, ride.PickupLatitude, ride.PickupLongitude, ride.DestinationLatitude, ride.DestinationLongitude)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err)
-			return
-		}
+			fare, err := calculateDiscountedFare(ctx, tx, user.ID, &ride, ride.PickupLatitude, ride.PickupLongitude, ride.DestinationLatitude, ride.DestinationLongitude)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
 
-		item := getAppRidesResponseItem{
-			ID:                    ride.ID,
-			PickupCoordinate:      Coordinate{Latitude: ride.PickupLatitude, Longitude: ride.PickupLongitude},
-			DestinationCoordinate: Coordinate{Latitude: ride.DestinationLatitude, Longitude: ride.DestinationLongitude},
-			Fare:                  fare,
-			Evaluation:            *ride.Evaluation,
-			RequestedAt:           ride.CreatedAt.UnixMilli(),
-			CompletedAt:           ride.UpdatedAt.UnixMilli(),
-		}
+			item := getAppRidesResponseItem{
+				ID:                    ride.ID,
+				PickupCoordinate:      Coordinate{Latitude: ride.PickupLatitude, Longitude: ride.PickupLongitude},
+				DestinationCoordinate: Coordinate{Latitude: ride.DestinationLatitude, Longitude: ride.DestinationLongitude},
+				Fare:                  fare,
+				Evaluation:            *ride.Evaluation,
+				RequestedAt:           ride.CreatedAt.UnixMilli(),
+				CompletedAt:           ride.UpdatedAt.UnixMilli(),
+			}
 
-		item.Chair = getAppRidesResponseItemChair{}
+			item.Chair = getAppRidesResponseItemChair{}
 
-		chair := &Chair{}
-		if err := tx.GetContext(ctx, chair, `SELECT * FROM chairs WHERE id = ?`, ride.ChairID); err != nil {
-			writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		item.Chair.ID = chair.ID
-		item.Chair.Name = chair.Name
-		item.Chair.Model = chair.Model
+			chair := &Chair{}
+			if err := tx.GetContext(ctx, chair, `SELECT * FROM chairs WHERE id = ?`, ride.ChairID); err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			item.Chair.ID = chair.ID
+			item.Chair.Name = chair.Name
+			item.Chair.Model = chair.Model
 
-		owner := &Owner{}
-		if err := tx.GetContext(ctx, owner, `SELECT * FROM owners WHERE id = ?`, chair.OwnerID); err != nil {
-			writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-		item.Chair.Owner = owner.Name
+			owner := &Owner{}
+			if err := tx.GetContext(ctx, owner, `SELECT * FROM owners WHERE id = ?`, chair.OwnerID); err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			item.Chair.Owner = owner.Name
 
-		items = append(items, item)
+			items = append(items, item)
+		}()
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -293,13 +295,21 @@ type executableGet interface {
 	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 }
 
-func getLatestRideStatus(ctx context.Context, tx executableGet, rideID string) (string, error) {
+func getLatestRideStatus(ctx context.Context, tx executableGet, rideID string, lock bool) (string, error) {
 	_, span := tracer.Start(ctx, "getLatestRideStatus")
 	defer span.End()
+	if !lock {
+		c := lockRide(rideID)
+		defer c()
+	}
+	if s, ok := getRideStatus(rideID); ok {
+		return s, nil
+	}
 	status := ""
 	if err := tx.GetContext(ctx, &status, `SELECT status FROM ride_statuses WHERE ride_id = ? ORDER BY created_at DESC LIMIT 1`, rideID); err != nil {
 		return "", err
 	}
+	setRideStatus(rideID, status)
 	return status, nil
 }
 
@@ -321,6 +331,8 @@ func appPostRides(w http.ResponseWriter, r *http.Request) {
 	user := ctx.Value("user").(*User)
 	rideID := ulid.Make().String()
 
+	c := lockRide(rideID)
+	defer c()
 	tx, err := db.Beginx()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -336,7 +348,7 @@ func appPostRides(w http.ResponseWriter, r *http.Request) {
 
 	continuingRideCount := 0
 	for _, ride := range rides {
-		status, err := getLatestRideStatus(ctx, tx, ride.ID)
+		status, err := getLatestRideStatus(ctx, tx, ride.ID, false)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
@@ -369,6 +381,7 @@ func appPostRides(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	setRideStatus(rideID, "MATCHING")
 
 	var rideCount int
 	if err := tx.GetContext(ctx, &rideCount, `SELECT COUNT(*) FROM rides WHERE user_id = ? `, user.ID); err != nil {
@@ -541,6 +554,8 @@ func appPostRideEvaluatation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	c := lockRide(rideID)
+	defer c()
 	tx, err := db.Beginx()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -557,7 +572,7 @@ func appPostRideEvaluatation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	status, err := getLatestRideStatus(ctx, tx, ride.ID)
+	status, err := getLatestRideStatus(ctx, tx, ride.ID, false)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -592,6 +607,7 @@ func appPostRideEvaluatation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	setRideStatus(rideID, "COMPLETED")
 
 	if err := tx.GetContext(ctx, ride, `SELECT * FROM rides WHERE id = ?`, rideID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -710,7 +726,7 @@ func appGetNotification(w http.ResponseWriter, r *http.Request) {
 	status := ""
 	if err := tx.GetContext(ctx, &yetSentRideStatus, `SELECT * FROM ride_statuses WHERE ride_id = ? AND app_sent_at IS NULL ORDER BY created_at ASC LIMIT 1`, ride.ID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			status, err = getLatestRideStatus(ctx, tx, ride.ID)
+			status, err = getLatestRideStatus(ctx, tx, ride.ID, true)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, err)
 				return
@@ -802,8 +818,11 @@ func lockRide(rideID string) func() {
 	}
 }
 
-func getRideStatus(rideID string) string {
-	return rideStatusMap[rideID]
+func getRideStatus(rideID string) (string, bool) {
+	if s, ok := rideStatusMap[rideID]; ok {
+		return s, true
+	}
+	return "", false
 }
 
 func setRideStatus(rideID, status string) {
@@ -925,7 +944,7 @@ func appGetNearbyChairs(w http.ResponseWriter, r *http.Request) {
 		skip := false
 		for _, ride := range rides {
 			// 過去にライドが存在し、かつ、それが完了していない場合はスキップ
-			status, err := getLatestRideStatus(ctx, tx, ride.ID)
+			status, err := getLatestRideStatus(ctx, tx, ride.ID, true)
 			if err != nil {
 				writeError(w, http.StatusInternalServerError, err)
 				return
