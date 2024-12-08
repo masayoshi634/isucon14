@@ -1,18 +1,10 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
-	"log"
-	"time"
-
-	"github.com/XSAM/otelsql"
-	"github.com/jmoiron/sqlx"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
-
 	_ "github.com/go-sql-driver/mysql"
 )
 
+/*
 func GetDBNoOtel() (*sqlx.DB, error) {
 	dsn := fmt.Sprintf(
 		"%s:%s@tcp(%s:%v)/%s?charset=utf8mb4&parseTime=true&loc=Local&interpolateParams=true",
@@ -94,3 +86,4 @@ func WaitDB(db *sql.DB) {
 	}
 	log.Println("Succeeded to connect db!")
 }
+*/

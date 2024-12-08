@@ -1,10 +1,17 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/XSAM/otelsql"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/mackee/pgx-replaced"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
-/*
 func GetDBNoOtel() (*sqlx.DB, error) {
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%v/%s?sslmode=disable",
@@ -86,4 +93,3 @@ func WaitDB(db *sql.DB) {
 	}
 	log.Println("Succeeded to connect db!")
 }
-*/
