@@ -139,6 +139,7 @@ create index coupons_user_id_used_by_created_at_index
 create index coupons_code_index
     on coupons (code);
 
+DROP TABLE IF EXISTS vacant_chair;
 create table if not exists vacant_chair
 (
     chair_id   text                    not null
