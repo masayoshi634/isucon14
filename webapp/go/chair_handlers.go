@@ -98,6 +98,10 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id) VALUES (?) ON CONFLICT DO NOTHING", chair.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
