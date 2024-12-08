@@ -172,7 +172,7 @@ FROM chairs
 	}
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, CURRENT_TIMESTAMP(6)) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = chair_locations_summary.total_distance + ?, total_distance_updated_at = CURRENT_TIMESTAMP(6)`,
+		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, CURRENT_TIMESTAMP(6)) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = ?, total_distance_updated_at = CURRENT_TIMESTAMP(6)`,
 		chair.ID, int64(totalDistance), int64(totalDistance),
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
