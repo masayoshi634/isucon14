@@ -50,7 +50,7 @@ var userCache = NewCache[string, *User]()
 func getCacheUser(ctx context.Context, accessToken string) (*User, error) {
 	_, span := tracer.Start(ctx, "getCacheUser")
 	defer span.End()
-
+	user := &User{}
 	user, ok := userCache.Get(accessToken)
 
 	if !ok {
