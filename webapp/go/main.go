@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	crand "crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -11,11 +12,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmoiron/sqlx"
+	"github.com/riandyrn/otelchi"
 )
 
 var db *sqlx.DB
 
 func main() {
+	tp, _ := initTracer(context.Background())
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			panic(err)
+		}
+	}()
+
 	mux := setup()
 	slog.Info("Listening on :8080")
 	http.ListenAndServe(":8080", mux)
@@ -66,6 +75,13 @@ func setup() http.Handler {
 	mux := chi.NewRouter()
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
+	serverName := "isuride"
+
+	// define router
+	r := chi.NewRouter()
+	r.Use(
+		otelchi.Middleware(serverName, otelchi.WithChiRoutes(r)),
+	)
 	mux.HandleFunc("POST /api/initialize", postInitialize)
 
 	// app handlers
@@ -170,7 +186,7 @@ func writeError(w http.ResponseWriter, statusCode int, err error) {
 	}
 	w.Write(buf)
 
-	slog.Error("error response wrote", err)
+	slog.Error("error response wrote", slog.Any("error", err))
 }
 
 func secureRandomStr(b int) string {
