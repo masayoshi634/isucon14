@@ -160,10 +160,28 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 					writeError(w, http.StatusInternalServerError, err)
 					return
 				}
+				cnid := ulid.Make().String()
+				if _, err := tx.ExecContext(
+					ctx,
+					`INSERT INTO chair_unnoticed (id, chair_id, ride_id, status) VALUES (?, ?, ?, ?)`,
+					cnid, ride.ChairID, ride.ID, "PICKUP",
+				); err != nil {
+					writeError(w, http.StatusInternalServerError, err)
+					return
+				}
 			}
 
 			if req.Latitude == ride.DestinationLatitude && req.Longitude == ride.DestinationLongitude && status == "CARRYING" {
 				if _, err := tx.ExecContext(ctx, "INSERT INTO ride_statuses (id, ride_id, status) VALUES (?, ?, ?)", ulid.Make().String(), ride.ID, "ARRIVED"); err != nil {
+					writeError(w, http.StatusInternalServerError, err)
+					return
+				}
+				cnid := ulid.Make().String()
+				if _, err := tx.ExecContext(
+					ctx,
+					`INSERT INTO chair_unnoticed (id, chair_id, ride_id, status) VALUES (?, ?, ?, ?)`,
+					cnid, ride.ChairID, ride.ID, "ARRIVED",
+				); err != nil {
 					writeError(w, http.StatusInternalServerError, err)
 					return
 				}
@@ -212,51 +230,82 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	ride := &Ride{}
-	yetSentRideStatus := RideStatus{}
+	// yetSentRideStatus := RideStatus{}
 	status := ""
-
-	if err := tx.GetContext(ctx, ride, `SELECT * FROM rides WHERE chair_id = ? ORDER BY updated_at DESC LIMIT 1`, chair.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR UPDATE"); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	type unnoticed struct {
+		ID     string `db:"id"`
+		RideID string `db:"ride_id"`
+		Status string `db:"status"`
+	}
+	var u unnoticed
+	if err := tx.GetContext(ctx, &u, "SELECT id, ride_id, status FROM chair_unnoticed WHERE chair_id = ? ORDER BY id ASC LIMIT 1", chair.ID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			if err := tx.Commit(); err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
 			writeJSON(w, http.StatusOK, &chairGetNotificationResponse{
 				RetryAfterMs: 30,
 			})
 			return
 		}
+	}
+	var ride Ride
+	if err := tx.GetContext(ctx, &ride, "SELECT * FROM rides WHERE id = ?", u.RideID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	if err := tx.GetContext(ctx, &yetSentRideStatus, `SELECT * FROM ride_statuses WHERE ride_id = ? AND chair_sent_at IS NULL ORDER BY created_at ASC LIMIT 1`, ride.ID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			status, err = getLatestRideStatus(ctx, tx, ride.ID)
-			if err != nil {
+	/*
+		if err := tx.GetContext(ctx, ride, `SELECT * FROM rides WHERE chair_id = ? ORDER BY updated_at DESC LIMIT 1`, chair.ID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeJSON(w, http.StatusOK, &chairGetNotificationResponse{
+					RetryAfterMs: 30,
+				})
+				return
+			}
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		if err := tx.GetContext(ctx, &yetSentRideStatus, `SELECT * FROM ride_statuses WHERE ride_id = ? AND chair_sent_at IS NULL ORDER BY created_at ASC LIMIT 1`, ride.ID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				status, err = getLatestRideStatus(ctx, tx, ride.ID)
+				if err != nil {
+					writeError(w, http.StatusInternalServerError, err)
+					return
+				}
+			} else {
 				writeError(w, http.StatusInternalServerError, err)
 				return
 			}
 		} else {
-			writeError(w, http.StatusInternalServerError, err)
-			return
+			status = yetSentRideStatus.Status
 		}
-	} else {
-		status = yetSentRideStatus.Status
-	}
+	*/
 
-	user := &User{}
-	err = tx.GetContext(ctx, user, "SELECT * FROM users WHERE id = ? FOR SHARE", ride.UserID)
-	if err != nil {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM chair_unnoticed WHERE id = ?", u.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	if yetSentRideStatus.ID != "" {
-		_, err := tx.ExecContext(ctx, `UPDATE ride_statuses SET chair_sent_at = CURRENT_TIMESTAMP(6) WHERE id = ?`, yetSentRideStatus.ID)
-		if err != nil {
+	user := &User{}
+	if err = tx.GetContext(ctx, user, "SELECT * FROM users WHERE id = ?", ride.UserID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	/*
+		if _, err := tx.ExecContext(ctx, `UPDATE ride_statuses SET chair_sent_at = CURRENT_TIMESTAMP(6) WHERE id = ?`, yetSentRideStatus.ID); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-	}
-	if yetSentRideStatus.Status == "COMPLETED" {
+	*/
+	if u.Status == "COMPLETED" {
 		if _, err := tx.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id) VALUES (?) ON CONFLICT DO NOTHING", chair.ID); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
@@ -338,6 +387,24 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
+		cnid := ulid.Make().String()
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO chair_unnoticed (id, chair_id, ride_id, status) VALUES (?, ?, ?, ?)`,
+			cnid, ride.ChairID, rideID, "MATCHING",
+		); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		cnid2 := ulid.Make().String()
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO chair_unnoticed (id, chair_id, ride_id, status) VALUES (?, ?, ?, ?)`,
+			cnid2, ride.ChairID, rideID, "ENROUTE",
+		); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
 	// After Picking up user
 	case "CARRYING":
 		status, err := getLatestRideStatus(ctx, tx, ride.ID)
@@ -350,6 +417,15 @@ func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if _, err := tx.ExecContext(ctx, "INSERT INTO ride_statuses (id, ride_id, status) VALUES (?, ?, ?)", ulid.Make().String(), ride.ID, "CARRYING"); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		cnid := ulid.Make().String()
+		if _, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO chair_unnoticed (id, chair_id, ride_id, status) VALUES (?, ?, ?, ?)`,
+			cnid, ride.ChairID, rideID, "CARRYING",
+		); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
