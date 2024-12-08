@@ -153,10 +153,10 @@ FROM chairs
                                 ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
                                 ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
                          FROM chair_locations
-                         WHERE chair_id = '01JDJ3EZVRW3AFFDVQSS7AE7QE'
+                         WHERE chair_id = ?
                          ) tmp
                    GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
-                         WHERE chair_id = ?`, chair.ID); err != nil {
+                         WHERE chair_id = ?`, chair.ID, chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
