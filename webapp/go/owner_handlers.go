@@ -128,7 +128,8 @@ func ownerGetSales(w http.ResponseWriter, r *http.Request) {
 	modelSalesByModel := map[string]int{}
 	for _, chair := range chairs {
 		rides := []Ride{}
-		if err := tx.SelectContext(ctx, &rides, "SELECT rides.* FROM rides JOIN ride_statuses ON rides.id = ride_statuses.ride_id WHERE chair_id = ? AND status = 'COMPLETED' AND updated_at BETWEEN ? AND ? + INTERVAL 999 MICROSECOND", chair.ID, since, until); err != nil {
+
+		if err := tx.SelectContext(ctx, &rides, "SELECT rides.* FROM rides JOIN ride_statuses ON rides.id = ride_statuses.ride_id WHERE chair_id = ? AND status = 'COMPLETED' AND updated_at BETWEEN ? AND ?", chair.ID, since, until.Add(999*time.Microsecond)); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
