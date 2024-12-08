@@ -148,3 +148,13 @@ create table if not exists vacant_chair
     distance   integer,
     created_at timestamp default now() not null
 );
+
+DROP TABLE IF EXISTS chair_locations_summary;
+create table chair_locations_summary
+(
+    chair_id                  text    not null
+        constraint chair_locations_summary_pk
+            primary key,
+    total_distance            integer not null,
+    total_distance_updated_at timestamp default null
+);
