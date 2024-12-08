@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 )
 
@@ -19,6 +20,7 @@ func appAuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		accessToken := c.Value
+		fmt.Printf("accessToken: %v\n", accessToken)
 		// user := &User{}
 		// err = db.GetContext(ctx, user, "SELECT * FROM users WHERE access_token = ?", accessToken)
 		// if err != nil {
