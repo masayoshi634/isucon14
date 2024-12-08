@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/oklog/ulid/v2"
 )
@@ -129,7 +130,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR UPDATE", chair.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR SHARE", chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -142,6 +143,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		}
 		distance := math.Abs(float64(req.Latitude)-float64(bcl.Latitude)) + math.Abs(float64(req.Longitude)-float64(bcl.Longitude))
 	*/
+	now := time.Now()
 	totalDistance := 0
 	if err := db.GetContext(ctx, &totalDistance, `SELECT COALESCE(SUM(total_distance), 0) AS total_distance
 FROM chairs
@@ -172,8 +174,8 @@ FROM chairs
 	}
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, CURRENT_TIMESTAMP(6)) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = ?, total_distance_updated_at = CURRENT_TIMESTAMP(6)`,
-		chair.ID, int64(totalDistance), int64(totalDistance),
+		`INSERT INTO chair_locations_summary (chair_id, total_distance, total_distance_updated_at) VALUES (?, ?, ?) ON CONFLICT ON CONSTRAINT chair_locations_summary_pk DO UPDATE SET total_distance = ?, total_distance_updated_at = ?`,
+		chair.ID, int64(totalDistance), now, int64(totalDistance), now,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
