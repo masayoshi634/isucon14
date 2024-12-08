@@ -256,6 +256,12 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if yetSentRideStatus.Status == "COMPLETED" {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id) VALUES (?)", chair.ID); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+	}
 
 	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
