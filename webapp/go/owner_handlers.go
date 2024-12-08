@@ -175,7 +175,7 @@ type chairWithDetail struct {
 	Name                   string       `db:"name"`
 	AccessToken            string       `db:"access_token"`
 	Model                  string       `db:"model"`
-	IsActive               bool         `db:"is_active"`
+	IsActive               int          `db:"is_active"`
 	CreatedAt              time.Time    `db:"created_at"`
 	UpdatedAt              time.Time    `db:"updated_at"`
 	TotalDistance          int          `db:"total_distance"`
@@ -232,11 +232,15 @@ WHERE owner_id = ?
 
 	res := ownerGetChairResponse{}
 	for _, chair := range chairs {
+		isActive := false
+		if chair.IsActive != 0 {
+			isActive = true
+		}
 		c := ownerGetChairResponseChair{
 			ID:            chair.ID,
 			Name:          chair.Name,
 			Model:         chair.Model,
-			Active:        chair.IsActive,
+			Active:        isActive,
 			RegisteredAt:  chair.CreatedAt.UnixMilli(),
 			TotalDistance: chair.TotalDistance,
 		}
