@@ -22,6 +22,9 @@ type chairPostChairsResponse struct {
 
 func chairPostChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "chairPostChairs")
+	defer span.End()
+
 	req := &chairPostChairsRequest{}
 	if err := bindJSON(r, req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -73,6 +76,9 @@ type postChairActivityRequest struct {
 
 func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "chairPostActivity")
+	defer span.End()
+
 	chair := ctx.Value("chair").(*Chair)
 
 	req := &postChairActivityRequest{}
@@ -96,6 +102,9 @@ type chairPostCoordinateResponse struct {
 
 func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "chairPostCoordinate")
+	defer span.End()
+
 	req := &Coordinate{}
 	if err := bindJSON(r, req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -186,6 +195,9 @@ type chairGetNotificationResponseData struct {
 
 func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "chairGetNotification")
+	defer span.End()
+
 	chair := ctx.Value("chair").(*Chair)
 
 	tx, err := db.Beginx()
@@ -271,6 +283,9 @@ type postChairRidesRideIDStatusRequest struct {
 
 func chairPostRideStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	_, span := tracer.Start(ctx, "chairPostRideStatus")
+	defer span.End()
+
 	rideID := r.PathValue("ride_id")
 
 	chair := ctx.Value("chair").(*Chair)
