@@ -211,10 +211,10 @@ func chairTotalDistanceUpdatedAtKey(chairID string) string {
 
 func addChairTotalDistance(ctx context.Context, chairID string, distance int, updatedAtMilli int64) error {
 	if _, err := rdb.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-		if err := rdb.IncrBy(ctx, chairTotalDistanceKey(chairID), int64(distance)).Err(); err != nil {
+		if err := pipe.IncrBy(ctx, chairTotalDistanceKey(chairID), int64(distance)).Err(); err != nil {
 			return fmt.Errorf("failed to add total distance: %w", err)
 		}
-		if err := rdb.Set(ctx, chairTotalDistanceUpdatedAtKey(chairID), updatedAtMilli, 0).Err(); err != nil {
+		if err := pipe.Set(ctx, chairTotalDistanceUpdatedAtKey(chairID), updatedAtMilli, 0).Err(); err != nil {
 			return fmt.Errorf("failed to set total distance updated at: %w", err)
 		}
 		return nil
