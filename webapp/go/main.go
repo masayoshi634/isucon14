@@ -221,7 +221,7 @@ func initializeChairsTotalRideCount(ctx context.Context) error {
 	if err := db.SelectContext(ctx, &chairs, `
 SELECT chair_id,
   COUNT(id) AS total_ride_count,
-  SUM(evaluation) AS total_evaluation,
+  SUM(evaluation) AS total_evaluation
 FROM rides
 WHERE evaluation IS NOT NULL
 GROUP BY chair_id
