@@ -147,7 +147,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO isu1.chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO isu1.chair_locations (id, chair_id, latitude, longitude,created_at) VALUES (?, ?, ?, ?,now())`,
 		chairLocationID, chair.ID, req.Latitude, req.Longitude,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
