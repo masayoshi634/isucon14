@@ -99,7 +99,7 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var chairLocation ChairLocation
-	if err := db.GetContext(ctx, &chairLocation, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil {
+	if err := db.GetContext(ctx, &chairLocation, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
