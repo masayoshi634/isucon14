@@ -1,70 +1,79 @@
 package main
 
-// var rdb = GetRedisClient(context.Background())
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
 
-// func GetRedisClient(ctx context.Context) *redis.Client {
-// 	_, span :=
-// 		// redis.confで外部接続許可を忘れずに
-// 		tracer.Start(ctx, "GetRedisClient")
-// 	defer span.End()
+	"github.com/redis/go-redis/extra/redisotel/v9"
+	"github.com/redis/go-redis/v9"
+)
 
-// 	addr := fmt.Sprintf("%s:%v",
-// 		GetEnv("REDIS_HOSTNAME", "localhost"),
-// 		GetEnv("REDIS_PORT", "6379"))
-// 	fmt.Printf("redis addr: %s\n", addr)
-// 	rdb := redis.NewClient(&redis.Options{
-// 		Addr:     addr,
-// 		Password: "", // no password set
-// 		DB:       0,  // use default DB
-// 	})
-// 	WaitRedis(ctx, rdb)
+var rdb = GetRedisClient(context.Background())
 
-// 	if GetEnv("OTEL_SDK_DISABLED", "false") != "true" {
-// 		if err := redisotel.InstrumentTracing(rdb); err != nil {
-// 			panic(err)
-// 		}
-// 	}
+func GetRedisClient(ctx context.Context) *redis.Client {
+	_, span := // redis.confで外部接続許可を忘れずに
+		tracer.Start(ctx, "GetRedisClient")
+	defer span.End()
 
-// 	return rdb
-// }
+	addr := fmt.Sprintf("%s:%v",
+		GetEnv("REDIS_HOSTNAME", "localhost"),
+		GetEnv("REDIS_PORT", "6379"))
+	fmt.Printf("redis addr: %s\n", addr)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	WaitRedis(ctx, rdb)
 
-// func WaitRedis(ctx context.Context, rdb *redis.Client) {
-// 	_, span := tracer.Start(ctx, "WaitRedis")
-// 	defer span.End()
-// 	for {
-// 		err := rdb.Ping(ctx).Err()
-// 		if err == nil {
-// 			break
-// 		}
-// 		log.Println(fmt.Errorf("failed to ping Redis on start up. retrying...: %w", err))
-// 		time.Sleep(time.Second * 1)
-// 	}
-// 	log.Println("Succeeded to connect redis!")
-// }
+	if GetEnv("OTEL_SDK_DISABLED", "false") != "true" {
+		if err := redisotel.InstrumentTracing(rdb); err != nil {
+			panic(err)
+		}
+	}
 
-// func ExampleRedis() {
-// 	ctx := context.Background()
-// 	rdb := GetRedisClient(ctx)
+	return rdb
+}
 
-// 	// set
-// 	err := rdb.Set(ctx, "key", "value", 0).Err()
-// 	if err != nil {
-// 		panic(err)
-// 	}
+func WaitRedis(ctx context.Context, rdb *redis.Client) {
+	_, span := tracer.Start(ctx, "WaitRedis")
+	defer span.End()
+	for {
+		err := rdb.Ping(ctx).Err()
+		if err == nil {
+			break
+		}
+		log.Println(fmt.Errorf("failed to ping Redis on start up. retrying...: %w", err))
+		time.Sleep(time.Second * 1)
+	}
+	log.Println("Succeeded to connect redis!")
+}
 
-// 	// get
-// 	val, err := rdb.Get(ctx, "key").Result()
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	fmt.Println("key", val)
+func ExampleRedis() {
+	ctx := context.Background()
+	rdb := GetRedisClient(ctx)
 
-// 	val2, err := rdb.Get(ctx, "key2").Result()
-// 	if err == redis.Nil {
-// 		fmt.Println("key2 does not exist")
-// 	} else if err != nil {
-// 		panic(err)
-// 	} else {
-// 		fmt.Println("key2", val2)
-// 	}
-// }
+	// set
+	err := rdb.Set(ctx, "key", "value", 0).Err()
+	if err != nil {
+		panic(err)
+	}
+
+	// get
+	val, err := rdb.Get(ctx, "key").Result()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("key", val)
+
+	val2, err := rdb.Get(ctx, "key2").Result()
+	if err == redis.Nil {
+		fmt.Println("key2 does not exist")
+	} else if err != nil {
+		panic(err)
+	} else {
+		fmt.Println("key2", val2)
+	}
+}
