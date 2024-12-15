@@ -175,6 +175,7 @@ func initializeChairsTotalDistance(ctx context.Context) error {
 	if err := db.SelectContext(ctx, &chairs, `
 SELECT id,
   owner_id,
+  total_distance,
   total_distance_updated_at
 FROM chairs
   LEFT JOIN (SELECT chair_id,
