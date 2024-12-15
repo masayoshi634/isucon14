@@ -27,17 +27,23 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 	}
 	var matchedChairID string
-	if err := tx.GetContext(ctx, &matchedChairID, "SELECT chair_id FROM vacant_chair FOR UPDATE SKIP LOCKED LIMIT 1"); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	// if err := tx.GetContext(ctx, &matchedChairID, "SELECT chair_id FROM vacant_chair FOR UPDATE SKIP LOCKED LIMIT 1"); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	// 	writeError(w, http.StatusInternalServerError, err)
+	// 	return
+	// }
+
+	if err := tx.GetContext(ctx, &matchedChairID, "DELETE FROM vacant_chair WHERE CTID = (SELECT CTID FROM vacant_chair FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING chair_id"); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+
 	if matchedChairID == "" {
 		w.WriteHeader(http.StatusNoContent)
 	}
 	/*
 		empty := false
 		for i := 0; i < 10; i++ {
-			if err := db.GetContext(ctx, matched, "SELECT * FROM chairs INNER JOIN (SELECT id FROM chairs WHERE is_active = 1 ORDER BY RANDOM() LIMIT 1) AS tmp ON chairs.id = tmp.id LIMIT 1"); err != nil {
+			if err := db.GetContext(ctx, matched, "SELECT * FROM isu1.chairs INNER JOIN (SELECT id FROM isu1.chairs WHERE is_active = 1 ORDER BY RANDOM() LIMIT 1) AS tmp ON chairs.id = tmp.id LIMIT 1"); err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					w.WriteHeader(http.StatusNoContent)
 					return
@@ -63,10 +69,10 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if _, err := tx.ExecContext(ctx, "DELETE FROM vacant_chair WHERE chair_id = ?", matchedChairID); err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
-	}
+	// if _, err := tx.ExecContext(ctx, "DELETE FROM vacant_chair WHERE chair_id = ?", matchedChairID); err != nil {
+	// 	writeError(w, http.StatusInternalServerError, err)
+	// 	return
+	// }
 	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
