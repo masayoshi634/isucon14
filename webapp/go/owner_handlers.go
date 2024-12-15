@@ -247,9 +247,17 @@ func addChairTotalRideCount(ctx context.Context, chairID string, evaluation int)
 	return nil
 }
 
-func addChairTotalEvaluation(ctx context.Context, chairID string, evaluation int) error {
-	if _, err := rdb.IncrBy(ctx, chairTotalEvaluationKey(chairID), int64(evaluation)).Result(); err != nil {
-		return fmt.Errorf("failed to add total evaluation: %w", err)
+func setChairTotalRideCount(ctx context.Context, chairID string, totalRideCount int, totalEvaluation int) error {
+	if _, err := rdb.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+		if _, err := pipe.Set(ctx, chairTotalRideCountKey(chairID), totalRideCount, 0).Result(); err != nil {
+			return fmt.Errorf("failed to set total ride count: %w", err)
+		}
+		if _, err := pipe.Set(ctx, chairTotalEvaluationKey(chairID), totalEvaluation, 0).Result(); err != nil {
+			return fmt.Errorf("failed to set total evaluation: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to set total ride count: %w", err)
 	}
 	return nil
 }
