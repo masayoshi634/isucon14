@@ -86,13 +86,13 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 	_, span := tracer.Start(ctx, "internalGetMatching")
 	defer span.End()
 
-	rides := []Ride{}
-	if err := db.SelectContext(ctx, rides, "SELECT * FROM rides WHERE chair_id IS NULL"); err != nil {
+	var rides []Ride
+	if err := db.SelectContext(ctx, &rides, "SELECT * FROM rides WHERE chair_id IS NULL"); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	vacantChairs := []VacantChair{}
-	if err := db.SelectContext(ctx, vacantChairs, "SELECT * FROM vacant_chair"); err != nil {
+	var vacantChairs []VacantChair
+	if err := db.SelectContext(ctx, &vacantChairs, "SELECT * FROM vacant_chair"); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
