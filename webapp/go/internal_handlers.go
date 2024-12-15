@@ -92,7 +92,7 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var vacantChairs []VacantChair
-	if err := db.SelectContext(ctx, &vacantChairs, "SELECT * FROM vacant_chair"); err != nil {
+	if err := db.SelectContext(ctx, &vacantChairs, "SELECT chair_id, latitude, longitude, speed FROM vacant_chair"); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
