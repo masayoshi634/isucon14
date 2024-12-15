@@ -51,7 +51,7 @@ func chairPostChairs(w http.ResponseWriter, r *http.Request) {
 
 	_, err := db.ExecContext(
 		ctx,
-		"INSERT INTO chairs (id, owner_id, name, model, is_active, access_token) VALUES (?, ?, ?, ?, ?, ?)",
+		"INSERT INTO isu1.chairs (id, owner_id, name, model, is_active, access_token) VALUES (?, ?, ?, ?, ?, ?)",
 		chairID, owner.ID, req.Name, req.Model, 0, accessToken,
 	)
 	if err != nil {
@@ -93,7 +93,7 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 		isActive = 1
 	}
 
-	_, err := db.ExecContext(ctx, "UPDATE chairs SET is_active = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?", isActive, chair.ID)
+	_, err := db.ExecContext(ctx, "UPDATE isu1.chairs SET is_active = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?", isActive, chair.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -147,7 +147,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO isu1.chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
 		chairLocationID, chair.ID, req.Latitude, req.Longitude,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
