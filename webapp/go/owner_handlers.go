@@ -224,6 +224,28 @@ func addChairTotalDistance(ctx context.Context, chairID string, distance int, up
 	return nil
 }
 
+func chairTotalRideCountKey(chairID string) string {
+	return fmt.Sprintf("chair:%s:total_ride_count", chairID)
+}
+
+func chairTotalEvaluationKey(chairID string) string {
+	return fmt.Sprintf("chair:%s:total_evaluation", chairID)
+}
+
+func addChairTotalRideCount(ctx context.Context, chairID string) error {
+	if _, err := rdb.Incr(ctx, chairTotalRideCountKey(chairID)).Result(); err != nil {
+		return fmt.Errorf("failed to add total ride count: %w", err)
+	}
+	return nil
+}
+
+func addChairTotalEvaluation(ctx context.Context, chairID string, evaluation int) error {
+	if _, err := rdb.IncrBy(ctx, chairTotalEvaluationKey(chairID), int64(evaluation)).Result(); err != nil {
+		return fmt.Errorf("failed to add total evaluation: %w", err)
+	}
+	return nil
+}
+
 type chairTotalDistance struct {
 	ChairID       string
 	TotalDistance int
@@ -232,7 +254,10 @@ type chairTotalDistance struct {
 
 func getChairsTotalDistances(ctx context.Context, chairIDs []string) (map[string]*chairTotalDistance, error) {
 	keys := lo.FlatMap(chairIDs, func(id string, _ int) []string {
-		return []string{chairTotalDistanceKey(id), chairTotalDistanceUpdatedAtKey(id)}
+		return []string{
+			chairTotalDistanceKey(id),
+			chairTotalDistanceUpdatedAtKey(id),
+		}
 	})
 	result := rdb.MGet(ctx, keys...)
 	if err := result.Err(); err != nil {
@@ -259,6 +284,53 @@ func getChairsTotalDistances(ctx context.Context, chairIDs []string) (map[string
 		}
 	}
 	return chairTotalDistances, nil
+}
+
+type chairTotalRideCount struct {
+	ChairID         string
+	TotalRideCount  int
+	TotalEvaluation int
+}
+
+func (c *chairTotalRideCount) totalEvaluationAvg() float64 {
+	if c.TotalRideCount == 0 {
+		return 0
+	}
+	return float64(c.TotalEvaluation) / float64(c.TotalRideCount)
+}
+
+func getChairsTotalRideCounts(ctx context.Context, chairIDs []string) (map[string]*chairTotalRideCount, error) {
+	keys := lo.FlatMap(chairIDs, func(id string, _ int) []string {
+		return []string{
+			chairTotalRideCountKey(id),
+			chairTotalEvaluationKey(id),
+		}
+	})
+	result := rdb.MGet(ctx, keys...)
+	if err := result.Err(); err != nil {
+		return nil, fmt.Errorf("failed to get total ride counts: %w", err)
+	}
+	chairTotalRideCounts := make(map[string]*chairTotalRideCount, len(chairIDs))
+	vals := result.Val()
+	for i := 0; i < len(keys); i += 2 {
+		if vals[i] == nil {
+			continue
+		}
+		totalRideCount, err := strconv.Atoi(vals[i].(string))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse total ride count: %w", err)
+		}
+		totalEvaluation, err := strconv.Atoi(vals[i+1].(string))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse total evaluation: %w", err)
+		}
+		chairTotalRideCounts[chairIDs[i/2]] = &chairTotalRideCount{
+			ChairID:         chairIDs[i/2],
+			TotalRideCount:  totalRideCount,
+			TotalEvaluation: totalEvaluation,
+		}
+	}
+	return chairTotalRideCounts, nil
 }
 
 func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
