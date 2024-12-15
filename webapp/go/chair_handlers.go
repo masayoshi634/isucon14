@@ -98,7 +98,17 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	if _, err := db.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id) VALUES (?) ON CONFLICT DO NOTHING", chair.ID); err != nil {
+	var chairLocation ChairLocation
+	if err := db.GetContext(ctx, &chairLocation, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	var speed int
+	if err := db.GetContext(ctx, &speed, "SELECT chair_models.speed FROM chairs INNER JOIN chair_models ON chair_models.name = chair.model WHERE chairs.id = ?", chair.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if _, err := db.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id, latitude, longitude, speed) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING", chair.ID, chairLocation.Latitude, chairLocation.Longitude, speed); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
