@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	crand "crypto/rand"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os/exec"
+	"runtime"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -149,7 +151,59 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := rdb.FlushAll(ctx).Err(); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := initializeChairsTotalDistance(ctx); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	writeJSON(w, http.StatusOK, postInitializeResponse{Language: "go"})
+}
+
+func initializeChairsTotalDistance(ctx context.Context) error {
+	type chairsWithTotalDistance struct {
+		ID                     string        `db:"id"`
+		OwnerID                string        `db:"owner_id"`
+		TotalDistance          sql.NullInt64 `db:"total_distance"`
+		TotalDistanceUpdatedAt sql.NullTime  `db:"total_distance_updated_at"`
+	}
+	var chairs []chairsWithTotalDistance
+	if err := db.SelectContext(ctx, &chairs, `
+SELECT id,
+  owner_id,
+  total_distance,
+  total_distance_updated_at
+FROM chairs
+  LEFT JOIN (SELECT chair_id,
+    SUM(COALESCE(distance, 0)) AS total_distance,
+    MAX(created_at)          AS total_distance_updated_at
+  FROM (SELECT chair_id,
+    created_at,
+    ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+    ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+    FROM chair_locations) tmp
+  GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
+`); err != nil {
+		return fmt.Errorf("failed to select chairs: %w", err)
+	}
+	for _, chair := range chairs {
+		var updatedAt int64
+		if chair.TotalDistanceUpdatedAt.Valid {
+			updatedAt = chair.TotalDistanceUpdatedAt.Time.UnixMilli()
+		}
+		var totalDistance int
+		if chair.TotalDistance.Valid {
+			totalDistance = int(chair.TotalDistance.Int64)
+		}
+		if err := addChairTotalDistance(ctx, chair.ID, totalDistance, updatedAt); err != nil {
+			return fmt.Errorf("failed to add chair total distance: %w", err)
+		}
+	}
+	return nil
 }
 
 type Coordinate struct {
@@ -173,6 +227,7 @@ func writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
 }
 
 func writeError(w http.ResponseWriter, statusCode int, err error) {
+	_, filename, linenum, ok := runtime.Caller(1)
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(statusCode)
 	buf, marshalError := json.Marshal(map[string]string{"message": err.Error()})
@@ -183,7 +238,11 @@ func writeError(w http.ResponseWriter, statusCode int, err error) {
 	}
 	w.Write(buf)
 
-	slog.Error("error response wrote", slog.Any("error", err))
+	if ok {
+		slog.Error("error response wrote", slog.Any("error", err), slog.String("file", filename), slog.Int("line", linenum))
+	} else {
+		slog.Error("error response wrote", slog.Any("error", err))
+	}
 }
 
 func secureRandomStr(b int) string {

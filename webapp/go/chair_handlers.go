@@ -130,6 +130,20 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR UPDATE", chair.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	before := &ChairLocation{}
+	if err := tx.GetContext(ctx, before, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	var distance int
+	if before != nil {
+		distance = calculateDistance(before.Latitude, before.Longitude, req.Latitude, req.Longitude)
+	}
+
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
@@ -176,6 +190,10 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := addChairTotalDistance(ctx, chair.ID, int(distance), location.CreatedAt.UnixMilli()); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
