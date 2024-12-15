@@ -147,5 +147,6 @@ create table if not exists vacant_chair
             primary key,
     latitude INTEGER NOT NULL,          -- 経度
     longitude INTEGER NOT NULL,         -- 緯度
+    speed     integer                 not null,
     created_at timestamp default now() not null
 );
