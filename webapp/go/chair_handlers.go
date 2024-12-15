@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"net/http"
 
 	"github.com/oklog/ulid/v2"
@@ -140,7 +139,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	distance := math.Abs(float64(req.Latitude-before.Latitude)) + math.Abs(float64(req.Longitude-before.Longitude))
+	distance := calculateDistance(before.Latitude, before.Longitude, req.Latitude, req.Longitude)
 
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
