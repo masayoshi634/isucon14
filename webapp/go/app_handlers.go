@@ -821,7 +821,7 @@ func getChairStats(ctx context.Context, tx *sqlx.Tx, chairID string) (appGetNoti
 	if err := tx.GetContext(
 		ctx,
 		&r,
-		`SELECT COUNT(id) AS total_rides_count, SUM(evaluation) AS total_evaluation FROM rides WHERE chair_id = ? AND evaluation IS NOT NULL`,
+		`SELECT COUNT(id) AS total_rides_count, SUM(COALESCE(evaluation, 0)) AS total_evaluation FROM rides WHERE chair_id = ? AND evaluation IS NOT NULL`,
 		chairID,
 	); err != nil {
 		return stats, err
