@@ -296,7 +296,7 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 	}
 	if yetSentRideStatus.Status == "COMPLETED" {
 		var chairLocation ChairLocation
-		if err := tx.GetContext(ctx, &chairLocation, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil {
+		if err := tx.GetContext(ctx, &chairLocation, "SELECT * FROM isu1.chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
