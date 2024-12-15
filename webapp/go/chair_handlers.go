@@ -140,7 +140,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var distance int
-	if before != nil {
+	if before.ID != "" {
 		distance = calculateDistance(before.Latitude, before.Longitude, req.Latitude, req.Longitude)
 	}
 
