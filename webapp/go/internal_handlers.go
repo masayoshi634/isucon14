@@ -100,7 +100,7 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 	for i, ride := range rides {
 		row := make([]float64, len(vacantChairs))
 		for j, vc := range vacantChairs {
-			row[j] = float64(vc.Distance(ride)) / float64(vc.Speed)
+			row[j] = float64(vc.Distance(ride)) + float64(ride.Distance())/float64(vc.Speed)
 		}
 		matrix[i] = row
 	}

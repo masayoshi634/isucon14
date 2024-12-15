@@ -60,6 +60,10 @@ type Ride struct {
 	UpdatedAt            time.Time      `db:"updated_at"`
 }
 
+func (r Ride) Distance() int {
+	return calculateDistance(r.PickupLatitude, r.PickupLongitude, r.DestinationLatitude, r.DestinationLongitude)
+}
+
 type RideStatus struct {
 	ID          string     `db:"id"`
 	RideID      string     `db:"ride_id"`
