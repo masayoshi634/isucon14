@@ -279,7 +279,7 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	if err := db.SelectContext(
 		ctx,
 		&chairs,
-		`SELECT id, owner_id, name, access_token, model, is_active, created_at, updated_at, FROM chairs WHERE owner_id = ?`,
+		`SELECT id, owner_id, name, access_token, model, is_active, created_at, updated_at FROM chairs WHERE owner_id = ?`,
 		owner.ID,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
