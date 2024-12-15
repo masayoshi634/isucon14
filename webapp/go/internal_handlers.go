@@ -1,9 +1,9 @@
 package main
 
 import (
-	"database/sql"
-	"errors"
 	"net/http"
+
+	"github.com/arthurkushman/go-hungarian"
 )
 
 /*
@@ -60,15 +60,49 @@ func internalGetMatching(w http.ResponseWriter, r *http.Request) {
 
 	var rides []Ride
 	if err := db.SelectContext(ctx, rides, "SELECT * FROM rides WHERE chair_id IS NULL"); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
 		writeError(w, http.StatusInternalServerError, err)
 		return
+	}
+	var vacantChairs []VacantChair
+	if err := db.SelectContext(ctx, vacantChairs, "SELECT * FROM vacant_chair"); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	matrix := make([][]float64, len(rides))
+	for i, ride := range rides {
+		row := make([]float64, len(vacantChairs))
+		for j, vc := range vacantChairs {
+			row[j] = float64(vc.Distance(ride)) / float64(vc.Speed)
+		}
+		matrix[i] = row
+	}
+	result := hungarian.SolveMin(matrix)
+	for i, v := range result {
+		ride := rides[i]
+		var vi int
+		for j := range v {
+			vi = j
+			break
+		}
+		vc := vacantChairs[vi]
+		tx, err := db.BeginTxx(ctx, nil)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if _, err := tx.ExecContext(ctx, "UPDATE rides SET chair_id = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?", vc.ChairID, ride.ID); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if _, err := tx.ExecContext(ctx, "DELETE FROM vacant_chair WHERE chair_id = ?", vc.ChairID); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
-type point [2]int

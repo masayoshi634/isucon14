@@ -271,7 +271,12 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}
-		if _, err := tx.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id, latitude, longitude) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", chair.ID, chairLocation.Latitude, chairLocation.Longitude); err != nil {
+		var speed int
+		if err := tx.GetContext(ctx, &speed, "SELECT speed FROM chair_models WHERE name = ?", chair.Model); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if _, err := tx.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id, latitude, longitude, speed) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING", chair.ID, chairLocation.Latitude, chairLocation.Longitude, speed); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}

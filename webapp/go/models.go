@@ -90,6 +90,7 @@ type VacantChair struct {
 	ChairID   string `db:"chair_id"`
 	Latitude  int    `db:"latitude"`
 	Longitude int    `db:"longitude"`
+	Speed     int    `db:"speed"`
 }
 
 func (v VacantChair) Distance(ride Ride) int {
