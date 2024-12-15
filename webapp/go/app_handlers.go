@@ -814,7 +814,7 @@ func getChairStats(ctx context.Context, tx *sqlx.Tx, chairID string) (appGetNoti
 	stats := appGetNotificationResponseChairStats{}
 
 	type chairStats struct {
-		TotalRidesCount int     `db:"total_rides"`
+		TotalRidesCount int     `db:"total_rides_count"`
 		TotalEvaluation float64 `db:"total_evaluation"`
 	}
 	r := chairStats{}
