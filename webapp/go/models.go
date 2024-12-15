@@ -85,3 +85,13 @@ type Coupon struct {
 	CreatedAt time.Time `db:"created_at"`
 	UsedBy    *string   `db:"used_by"`
 }
+
+type VacantChair struct {
+	ChairID   string `db:"chair_id"`
+	Latitude  int    `db:"latitude"`
+	Longitude int    `db:"longitude"`
+}
+
+func (v VacantChair) Distance(ride Ride) int {
+	return calculateDistance(v.Latitude, v.Longitude, ride.PickupLatitude, ride.PickupLongitude)
+}

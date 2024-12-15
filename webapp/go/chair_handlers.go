@@ -220,6 +220,11 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 	yetSentRideStatus := RideStatus{}
 	status := ""
 
+	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR UPDATE", chair.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	if err := tx.GetContext(ctx, ride, `SELECT * FROM rides WHERE chair_id = ? ORDER BY updated_at DESC LIMIT 1`, chair.ID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			writeJSON(w, http.StatusOK, &chairGetNotificationResponse{
@@ -261,7 +266,12 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if yetSentRideStatus.Status == "COMPLETED" {
-		if _, err := tx.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id) VALUES (?) ON CONFLICT DO NOTHING", chair.ID); err != nil {
+		var chairLocation ChairLocation
+		if err := tx.GetContext(ctx, &chairLocation, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		if _, err := tx.ExecContext(ctx, "INSERT INTO vacant_chair (chair_id, latitude, longitude) VALUES (?, ?, ?) ON CONFLICT DO NOTHING", chair.ID, chairLocation.Latitude, chairLocation.Longitude); err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
 		}

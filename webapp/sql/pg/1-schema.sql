@@ -145,6 +145,7 @@ create table if not exists vacant_chair
     chair_id   text                    not null
         constraint vacant_chair_pk
             primary key,
-    distance   integer,
+    latitude INTEGER NOT NULL,          -- 経度
+    longitude INTEGER NOT NULL,         -- 緯度
     created_at timestamp default now() not null
 );
