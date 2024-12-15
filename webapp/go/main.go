@@ -177,7 +177,7 @@ SELECT id,
   owner_id,
   total_distance,
   total_distance_updated_at
-FROM chairs
+FROM isu1.chairs
   LEFT JOIN (SELECT chair_id,
     SUM(COALESCE(distance, 0)) AS total_distance,
     MAX(created_at)          AS total_distance_updated_at

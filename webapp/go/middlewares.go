@@ -189,7 +189,7 @@ func getCacheChair(ctx context.Context, accessToken string) (*Chair, error) {
 	}
 
 	chair := &Chair{}
-	err := db.GetContext(ctx, chair, "SELECT * FROM chairs WHERE access_token = ?", accessToken)
+	err := db.GetContext(ctx, chair, "SELECT * FROM isu1.chairs WHERE access_token = ?", accessToken)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("invalid access token")
