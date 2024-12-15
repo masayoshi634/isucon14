@@ -286,14 +286,6 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-
-	if yetSentRideStatus.ID != "" {
-		_, err := tx.ExecContext(ctx, `UPDATE ride_statuses SET chair_sent_at = CURRENT_TIMESTAMP(6) WHERE id = ?`, yetSentRideStatus.ID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err)
-			return
-		}
-	}
 	if yetSentRideStatus.Status == "COMPLETED" {
 		var chairLocation ChairLocation
 		if err := tx.GetContext(ctx, &chairLocation, "SELECT * FROM isu1.chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil {
@@ -314,6 +306,14 @@ func chairGetNotification(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
+	}
+
+	if yetSentRideStatus.ID != "" {
+		_, err := db.ExecContext(ctx, `UPDATE ride_statuses SET chair_sent_at = CURRENT_TIMESTAMP(6) WHERE id = ?`, yetSentRideStatus.ID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, &chairGetNotificationResponse{
