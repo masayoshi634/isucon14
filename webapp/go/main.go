@@ -166,10 +166,10 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 
 func initializeChairsTotalDistance(ctx context.Context) error {
 	type chairsWithTotalDistance struct {
-		ID                     string       `db:"id"`
-		OwnerID                string       `db:"owner_id"`
-		TotalDistance          int          `db:"total_distance"`
-		TotalDistanceUpdatedAt sql.NullTime `db:"total_distance_updated_at"`
+		ID                     string        `db:"id"`
+		OwnerID                string        `db:"owner_id"`
+		TotalDistance          sql.NullInt64 `db:"total_distance"`
+		TotalDistanceUpdatedAt sql.NullTime  `db:"total_distance_updated_at"`
 	}
 	var chairs []chairsWithTotalDistance
 	if err := db.SelectContext(ctx, &chairs, `
@@ -195,7 +195,11 @@ FROM chairs
 		if chair.TotalDistanceUpdatedAt.Valid {
 			updatedAt = chair.TotalDistanceUpdatedAt.Time.UnixMilli()
 		}
-		if err := addChairTotalDistance(ctx, chair.ID, chair.TotalDistance, updatedAt); err != nil {
+		var totalDistance int
+		if chair.TotalDistance.Valid {
+			totalDistance = int(chair.TotalDistance.Int64)
+		}
+		if err := addChairTotalDistance(ctx, chair.ID, totalDistance, updatedAt); err != nil {
 			return fmt.Errorf("failed to add chair total distance: %w", err)
 		}
 	}
