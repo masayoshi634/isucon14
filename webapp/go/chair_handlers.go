@@ -104,7 +104,7 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var speed int
-	if err := db.GetContext(ctx, &speed, "SELECT chair_models.speed FROM chairs INNER JOIN chair_models ON chair_models.name = chair.model WHERE chairs.id = ?", chair.ID); err != nil {
+	if err := db.GetContext(ctx, &speed, "SELECT chair_models.speed FROM chairs INNER JOIN chair_models ON chair_models.name = chairs.model WHERE chairs.id = ?", chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
