@@ -99,12 +99,12 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var chairLocation ChairLocation
-	if err := db.GetContext(ctx, &chairLocation, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.GetContext(ctx, &chairLocation, "SELECT * FROM isu1.chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	var speed int
-	if err := db.GetContext(ctx, &speed, "SELECT chair_models.speed FROM chairs INNER JOIN chair_models ON chair_models.name = chairs.model WHERE chairs.id = ?", chair.ID); err != nil {
+	if err := db.GetContext(ctx, &speed, "SELECT chair_models.speed FROM isu1.chairs INNER JOIN chair_models ON chair_models.name = isu1.chairs.model WHERE isu1.chairs.id = ?", chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
