@@ -185,7 +185,7 @@ FROM chairs
     created_at,
     ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
     ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-    FROM chair_locations) tmp
+    FROM isu1.chair_locations) tmp
   GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
 `); err != nil {
 		return fmt.Errorf("failed to select chairs: %w", err)
