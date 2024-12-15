@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/oklog/ulid/v2"
+	"github.com/redis/go-redis/v9"
+	"github.com/samber/lo"
 )
 
 const (
@@ -197,6 +201,66 @@ type ownerGetChairResponseChair struct {
 	TotalDistanceUpdatedAt *int64 `json:"total_distance_updated_at,omitempty"`
 }
 
+func chairTotalDistanceKey(chairID string) string {
+	return fmt.Sprintf("chair:%s:total_distance", chairID)
+}
+
+func chairTotalDistanceUpdatedAtKey(chairID string) string {
+	return fmt.Sprintf("chair:%s:total_distance_updated_at", chairID)
+}
+
+func addChairTotalDistance(ctx context.Context, chairID string, distance int, updatedAtMilli int64) error {
+	if _, err := rdb.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+		if err := rdb.IncrBy(ctx, chairTotalDistanceKey(chairID), int64(distance)).Err(); err != nil {
+			return fmt.Errorf("failed to add total distance: %w", err)
+		}
+		if err := rdb.Set(ctx, chairTotalDistanceUpdatedAtKey(chairID), updatedAtMilli, 0).Err(); err != nil {
+			return fmt.Errorf("failed to set total distance updated at: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("failed to add total distance: %w", err)
+	}
+	return nil
+}
+
+type chairTotalDistance struct {
+	ChairID       string
+	TotalDistance int
+	UpdatedAt     int64
+}
+
+func getChairsTotalDistances(ctx context.Context, chairIDs []string) (map[string]*chairTotalDistance, error) {
+	keys := lo.FlatMap(chairIDs, func(id string, _ int) []string {
+		return []string{chairTotalDistanceKey(id), chairTotalDistanceUpdatedAtKey(id)}
+	})
+	result := rdb.MGet(ctx, keys...)
+	if err := result.Err(); err != nil {
+		return nil, fmt.Errorf("failed to get total distances: %w", err)
+	}
+	chairTotalDistances := make(map[string]*chairTotalDistance, len(chairIDs))
+	vals := result.Val()
+	for i := 0; i < len(keys); i += 2 {
+		if vals[i] == nil {
+			continue
+		}
+		distance, err := strconv.Atoi(vals[i].(string))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse total distance: %w", err)
+		}
+		updatedAt, err := strconv.ParseInt(vals[i+1].(string), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse total distance updated at: %w", err)
+		}
+		chairTotalDistances[chairIDs[i/2]] = &chairTotalDistance{
+			ChairID:       chairIDs[i/2],
+			TotalDistance: distance,
+			UpdatedAt:     updatedAt,
+		}
+	}
+	return chairTotalDistances, nil
+}
+
 func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	_, span := tracer.Start(ctx, "ownerGetChairs")
@@ -204,29 +268,26 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 
 	owner := ctx.Value("owner").(*Owner)
 
+	type chairDetail struct {
+		ID        string    `db:"id"`
+		Name      string    `db:"name"`
+		Model     string    `db:"model"`
+		IsActive  int       `db:"is_active"`
+		CreatedAt time.Time `db:"created_at"`
+	}
 	chairs := []chairWithDetail{}
-	if err := db.SelectContext(ctx, &chairs, `SELECT id,
-       owner_id,
-       name,
-       access_token,
-       model,
-       is_active,
-       created_at,
-       updated_at,
-       COALESCE(total_distance, 0) AS total_distance,
-       total_distance_updated_at
-FROM chairs
-       LEFT JOIN (SELECT chair_id,
-                          SUM(COALESCE(distance, 0)) AS total_distance,
-                          MAX(created_at)          AS total_distance_updated_at
-                   FROM (SELECT chair_id,
-                                created_at,
-                                ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
-                                ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
-                         FROM chair_locations) tmp
-                   GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
-WHERE owner_id = ?
-`, owner.ID); err != nil {
+	if err := db.SelectContext(
+		ctx,
+		&chairs,
+		`SELECT id, owner_id, name, access_token, model, is_active, created_at, updated_at, FROM chairs WHERE owner_id = ?`,
+		owner.ID,
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	chaidIDs := lo.Map(chairs, func(chair chairWithDetail, _ int) string { return chair.ID })
+	totalDistances, err := getChairsTotalDistances(ctx, chaidIDs)
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -237,17 +298,21 @@ WHERE owner_id = ?
 		if chair.IsActive != 0 {
 			isActive = true
 		}
-		c := ownerGetChairResponseChair{
-			ID:            chair.ID,
-			Name:          chair.Name,
-			Model:         chair.Model,
-			Active:        isActive,
-			RegisteredAt:  chair.CreatedAt.UnixMilli(),
-			TotalDistance: chair.TotalDistance,
+		totalDistanceDetail := totalDistances[chair.ID]
+		var totalDistance int
+		var totalDistanceUpdatedAt *int64
+		if totalDistanceDetail != nil {
+			totalDistance = totalDistanceDetail.TotalDistance
+			totalDistanceUpdatedAt = &totalDistanceDetail.UpdatedAt
 		}
-		if chair.TotalDistanceUpdatedAt.Valid {
-			t := chair.TotalDistanceUpdatedAt.Time.UnixMilli()
-			c.TotalDistanceUpdatedAt = &t
+		c := ownerGetChairResponseChair{
+			ID:                     chair.ID,
+			Name:                   chair.Name,
+			Model:                  chair.Model,
+			Active:                 isActive,
+			RegisteredAt:           chair.CreatedAt.UnixMilli(),
+			TotalDistance:          totalDistance,
+			TotalDistanceUpdatedAt: totalDistanceUpdatedAt,
 		}
 		res.Chairs = append(res.Chairs, c)
 	}

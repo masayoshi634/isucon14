@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	crand "crypto/rand"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -149,7 +150,54 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := rdb.FlushAll(ctx).Err(); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := initializeChairsTotalDistance(ctx); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	writeJSON(w, http.StatusOK, postInitializeResponse{Language: "go"})
+}
+
+func initializeChairsTotalDistance(ctx context.Context) error {
+	type chairsWithTotalDistance struct {
+		ID                     string       `db:"id"`
+		OwnerID                string       `db:"owner_id"`
+		TotalDistance          int          `db:"total_distance"`
+		TotalDistanceUpdatedAt sql.NullTime `db:"total_distance_updated_at"`
+	}
+	var chairs []chairsWithTotalDistance
+	if err := db.SelectContext(ctx, &chairs, `
+SELECT id,
+  owner_id,
+  total_distance_updated_at
+FROM chairs
+  LEFT JOIN (SELECT chair_id,
+    SUM(COALESCE(distance, 0)) AS total_distance,
+    MAX(created_at)          AS total_distance_updated_at
+  FROM (SELECT chair_id,
+    created_at,
+    ABS(latitude - LAG(latitude) OVER (PARTITION BY chair_id ORDER BY created_at)) +
+    ABS(longitude - LAG(longitude) OVER (PARTITION BY chair_id ORDER BY created_at)) AS distance
+    FROM chair_locations) tmp
+  GROUP BY chair_id) distance_table ON distance_table.chair_id = chairs.id
+`); err != nil {
+		return fmt.Errorf("failed to select chairs: %w", err)
+	}
+	for _, chair := range chairs {
+		var updatedAt int64
+		if chair.TotalDistanceUpdatedAt.Valid {
+			updatedAt = chair.TotalDistanceUpdatedAt.Time.UnixMilli()
+		}
+		if err := addChairTotalDistance(ctx, chair.ID, chair.TotalDistance, updatedAt); err != nil {
+			return fmt.Errorf("failed to add chair total distance: %w", err)
+		}
+	}
+	return nil
 }
 
 type Coordinate struct {
