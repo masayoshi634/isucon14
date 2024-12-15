@@ -647,6 +647,10 @@ func appPostRideEvaluatation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+	if err := addChairTotalRideCount(ctx, ride.ChairID.String, req.Evaluation); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, &appPostRideEvaluationResponse{
 		CompletedAt: ride.UpdatedAt.UnixMilli(),
@@ -756,7 +760,7 @@ func appGetNotification(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		stats, err := getChairStats(ctx, tx, chair.ID)
+		stats, err := getChairStats(ctx, chair.ID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return
@@ -786,7 +790,7 @@ func appGetNotification(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, response)
 }
 
-func getChairStats(ctx context.Context, tx *sqlx.Tx, chairID string) (appGetNotificationResponseChairStats, error) {
+func getChairStats(ctx context.Context, chairID string) (appGetNotificationResponseChairStats, error) {
 	_, span := tracer.Start(ctx, "getChairStats")
 	defer span.End()
 	stats := appGetNotificationResponseChairStats{}
