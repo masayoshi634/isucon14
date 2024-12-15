@@ -51,7 +51,7 @@ func chairPostChairs(w http.ResponseWriter, r *http.Request) {
 
 	_, err := db.ExecContext(
 		ctx,
-		"INSERT INTO chairs (id, owner_id, name, model, is_active, access_token) VALUES (?, ?, ?, ?, ?, ?)",
+		"INSERT INTO isu1.chairs (id, owner_id, name, model, is_active, access_token,created_at,updated_at) VALUES (?, ?, ?, ?, ?, ?,now(),now())",
 		chairID, owner.ID, req.Name, req.Model, 0, accessToken,
 	)
 	if err != nil {
@@ -93,7 +93,7 @@ func chairPostActivity(w http.ResponseWriter, r *http.Request) {
 		isActive = 1
 	}
 
-	_, err := db.ExecContext(ctx, "UPDATE chairs SET is_active = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?", isActive, chair.ID)
+	_, err := db.ExecContext(ctx, "UPDATE isu1.chairs SET is_active = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE id = ?", isActive, chair.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -130,12 +130,13 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR UPDATE", chair.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, "SELECT id FROM isu1.chairs WHERE id = ? FOR UPDATE", chair.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
 	before := &ChairLocation{}
-	if err := tx.GetContext(ctx, before, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY created_at DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+
+	if err := tx.GetContext(ctx, before, "SELECT * FROM isu1.chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -147,7 +148,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO chair_locations (id, chair_id, latitude, longitude) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO isu1.chair_locations (id, chair_id, latitude, longitude,created_at) VALUES (?, ?, ?, ?,now())`,
 		chairLocationID, chair.ID, req.Latitude, req.Longitude,
 	); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
@@ -155,7 +156,7 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	location := &ChairLocation{}
-	if err := tx.GetContext(ctx, location, `SELECT * FROM chair_locations WHERE id = ?`, chairLocationID); err != nil {
+	if err := tx.GetContext(ctx, location, `SELECT * FROM isu1.chair_locations WHERE id = ?`, chairLocationID); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
