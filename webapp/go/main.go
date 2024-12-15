@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os/exec"
+	"runtime"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -221,6 +222,7 @@ func writeJSON(w http.ResponseWriter, statusCode int, v interface{}) {
 }
 
 func writeError(w http.ResponseWriter, statusCode int, err error) {
+	_, filename, linenum, ok := runtime.Caller(1)
 	w.Header().Set("Content-Type", "application/json;charset=utf-8")
 	w.WriteHeader(statusCode)
 	buf, marshalError := json.Marshal(map[string]string{"message": err.Error()})
@@ -231,7 +233,11 @@ func writeError(w http.ResponseWriter, statusCode int, err error) {
 	}
 	w.Write(buf)
 
-	slog.Error("error response wrote", slog.Any("error", err))
+	if ok {
+		slog.Error("error response wrote", slog.Any("error", err), slog.String("file", filename), slog.Int("line", linenum))
+	} else {
+		slog.Error("error response wrote", slog.Any("error", err))
+	}
 }
 
 func secureRandomStr(b int) string {

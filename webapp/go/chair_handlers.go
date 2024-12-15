@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 
 	"github.com/oklog/ulid/v2"
@@ -130,6 +131,17 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	if _, err := tx.ExecContext(ctx, "SELECT id FROM chairs WHERE id = ? FOR UPDATE", chair.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	before := &ChairLocation{}
+	if err := tx.GetContext(ctx, before, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	distance := math.Abs(float64(req.Latitude-before.Latitude)) + math.Abs(float64(req.Longitude-before.Longitude))
+
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
 		ctx,
@@ -176,6 +188,10 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	if err := addChairTotalDistance(ctx, chair.ID, int(distance), location.CreatedAt.UnixMilli()); err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
