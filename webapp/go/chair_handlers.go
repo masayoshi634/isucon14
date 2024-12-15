@@ -135,11 +135,14 @@ func chairPostCoordinate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	before := &ChairLocation{}
-	if err := tx.GetContext(ctx, before, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil {
+	if err := tx.GetContext(ctx, before, "SELECT * FROM chair_locations WHERE chair_id = ? ORDER BY id DESC LIMIT 1", chair.ID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	distance := calculateDistance(before.Latitude, before.Longitude, req.Latitude, req.Longitude)
+	var distance int
+	if before != nil {
+		distance = calculateDistance(before.Latitude, before.Longitude, req.Latitude, req.Longitude)
+	}
 
 	chairLocationID := ulid.Make().String()
 	if _, err := tx.ExecContext(
