@@ -303,7 +303,9 @@ func ownerGetChairs(w http.ResponseWriter, r *http.Request) {
 		var totalDistanceUpdatedAt *int64
 		if totalDistanceDetail != nil {
 			totalDistance = totalDistanceDetail.TotalDistance
-			totalDistanceUpdatedAt = &totalDistanceDetail.UpdatedAt
+			if totalDistanceDetail.UpdatedAt > 0 {
+				totalDistanceUpdatedAt = &totalDistanceDetail.UpdatedAt
+			}
 		}
 		c := ownerGetChairResponseChair{
 			ID:                     chair.ID,
